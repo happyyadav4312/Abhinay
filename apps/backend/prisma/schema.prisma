@@ -1,0 +1,36 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Role Enum ──────────────────────────────────────────
+enum Role {
+  ACTOR
+  DIRECTOR
+  PRODUCER
+  CAMERA_OPERATOR
+  EDITOR
+  OTHER_CREW
+  ADMIN
+}
+
+// ── User Model ─────────────────────────────────────────
+// Foundation model for authentication and future expansion.
+// Profile, project, casting, and application tables will reference this model.
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(ACTOR)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}

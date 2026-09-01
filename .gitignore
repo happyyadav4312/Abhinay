@@ -1,0 +1,41 @@
+# ── Dependencies ─────────────────────────────────────
+node_modules/
+
+# ── Environment ──────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Build Output ─────────────────────────────────────
+dist/
+build/
+.next/
+out/
+
+# ── Prisma ───────────────────────────────────────────
+apps/api/prisma/migrations/**/migration_lock.toml
+
+# ── IDE / Editor ─────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS Files ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── Logs ─────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Testing ──────────────────────────────────────────
+coverage/
+
+# ── Misc ─────────────────────────────────────────────
+*.tsbuildinfo
