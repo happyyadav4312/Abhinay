@@ -1,2 +1,4 @@
-// Common components barrel export
-// Add shared layout components here (Header, Footer, Sidebar, etc.)
+export { Avatar } from './Avatar';
+export { ExperienceList, ProfileView, SkillList } from './ProfileView';
+export { RequireAuth, safeReturnTo } from './RequireAuth';
+export { SiteHeader } from './SiteHeader';

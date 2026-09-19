@@ -1,37 +1,41 @@
 import { Router } from 'express';
 import { prisma } from '../config/database';
-import { sendSuccess, sendError } from '../utils/response';
+import { env } from '../config/env';
+import { ErrorCode } from '../utils/errors';
+import { sendError, sendSuccess } from '../utils/response';
+import { asyncHandler } from '../utils/asyncHandler';
 
 const router = Router();
 
-/**
- * GET /api/v1/health
- * Basic health check + database connectivity verification.
- */
-router.get('/', async (_req, res) => {
-  let dbStatus = 'disconnected';
+/** GET /api/v1/health — liveness plus a real database round-trip. */
+router.get(
+  '/',
+  asyncHandler(async (_req, res) => {
+    let database = 'disconnected';
 
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    dbStatus = 'connected';
-  } catch {
-    dbStatus = 'disconnected';
-  }
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      database = 'connected';
+    } catch {
+      database = 'disconnected';
+    }
 
-  const isHealthy = dbStatus === 'connected';
+    if (database !== 'connected') {
+      sendError(res, 'Database is not connected', 503, ErrorCode.SERVICE_UNAVAILABLE);
+      return;
+    }
 
-  if (isHealthy) {
-    sendSuccess(res, {
-      api: 'ok',
-      database: dbStatus,
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-    }, 'Abhinay API is running');
-  } else {
-    sendError(res, 'Database is not connected', 503, [
-      `Database status: ${dbStatus}`,
-    ]);
-  }
-});
+    sendSuccess(
+      res,
+      {
+        api: 'ok',
+        database,
+        timestamp: new Date().toISOString(),
+        environment: env.NODE_ENV,
+      },
+      'Abhinay API is running'
+    );
+  })
+);
 
 export default router;

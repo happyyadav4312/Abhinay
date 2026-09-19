@@ -1,27 +1,28 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { Role } from '@prisma/client';
 import { AuthenticatedRequest } from '../types';
-import { sendError } from '../utils/response';
+import { forbidden, unauthenticated } from '../utils/errors';
 
 /**
- * Role-Based Access Control middleware factory.
- * Restricts access to users with one of the specified roles.
+ * Role-based access control. Must run after `authenticate`, which resolves the
+ * role from the database rather than from the token claim.
  *
- * @example
- *   router.get('/admin', authenticate, requireRole('ADMIN'), handler);
- *   router.get('/crew', authenticate, requireRole('PRODUCER', 'DIRECTOR'), handler);
+ *   401 — no verified identity on the request
+ *   403 — verified identity whose role is not permitted
+ *
+ * @example router.get('/users', authenticate, requireRole(Role.ADMIN), handler)
  */
 export function requireRole(...allowedRoles: Role[]) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     const user = (req as AuthenticatedRequest).user;
 
     if (!user) {
-      sendError(res, 'Authentication required', 401);
+      next(unauthenticated('Authentication required'));
       return;
     }
 
     if (!allowedRoles.includes(user.role)) {
-      sendError(res, 'Insufficient permissions', 403);
+      next(forbidden('Insufficient permissions'));
       return;
     }
 

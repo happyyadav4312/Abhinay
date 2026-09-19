@@ -1,0 +1,776 @@
+{
+  "info": {
+    "name": "Abhinay — Auth & Profiles (WBS 1.1)",
+    "description": "Abhinay API, Weeks 1-5 scope: authentication, RBAC and professional profiles.\n\nSetup\n1. Import `abhinay.local.postman_environment.json` and select it.\n2. Start the API: `npm run dev:backend`.\n3. Run `Auth / Register` — it stores `accessToken` and `profileId` in the environment automatically.\n\nNotes\n- No credentials or tokens are bundled. `email` and `password` come from the environment; set your own before running.\n- Postman keeps the HttpOnly `refreshToken` cookie in its cookie jar, so Refresh and Logout work without any manual copying.\n- `X-Abhinay-Client: web` is set at collection level because the cookie-authenticated endpoints require it.\n- Requests sent from Postman have no `Origin` header, which the API treats as a non-browser client.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('API and database are up', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().data.database).to.eql('connected');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"{{role}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Creates the user and their profile in one transaction and sets the refresh cookie. ADMIN is rejected here even though the UI never offers it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('registered', function () { pm.response.to.have.status(201); });",
+                  "const data = pm.response.json().data;",
+                  "if (data && data.accessToken) {",
+                  "  pm.environment.set('accessToken', data.accessToken);",
+                  "  pm.environment.set('userId', data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register — duplicate email (409)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"{{role}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Run immediately after Register: the second attempt conflicts on the unique email index."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('conflict', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('EMAIL_TAKEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register — ADMIN is rejected (422)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sneaky Admin\",\n  \"email\": \"admin-attempt@example.test\",\n  \"password\": \"{{password}}\",\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('role allowlist enforced on the server', function () {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().error.fieldErrors).to.have.property('role');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('logged in', function () { pm.response.to.have.status(200); });",
+                  "const data = pm.response.json().data;",
+                  "if (data && data.accessToken) pm.environment.set('accessToken', data.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login — wrong password (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"definitely not the password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "An unknown email produces exactly this response too, so account existence is not disclosed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('generic credential error', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('INVALID_CREDENTIALS');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('identified', function () { pm.response.to.have.status(200); });",
+                  "pm.test('no secrets in the projection', function () {",
+                  "  pm.expect(pm.response.text()).to.not.include('passwordHash');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current user — invalid token (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer not.a.real.token" }],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('rejected', function () { pm.response.to.have.status(401); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Uses the refreshToken cookie from Postman's cookie jar. Rotates the session: the old token is consumed and a new cookie is set."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rotated', function () { pm.response.to.have.status(200); });",
+                  "const data = pm.response.json().data;",
+                  "if (data && data.accessToken) pm.environment.set('accessToken', data.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh — without the client header (403)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "The collection pre-request script strips the client header for this request only, showing that the cookie alone is not enough."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('client header required', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('MISSING_CLIENT_HEADER');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Revokes the refresh session and clears the cookie. Idempotent, and works with an expired or absent access token. Access tokens already issued remain valid until they expire."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('logged out', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get own profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('owner projection', function () { pm.response.to.have.status(200); });",
+                  "const profile = pm.response.json().data.profile;",
+                  "if (profile) pm.environment.set('profileId', profile.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get own profile — no token (401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me"]
+            },
+            "description": "Proves /me is not captured by the public /:id route: without a token this is 401, not an anonymous lookup."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('authentication required', function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update own profile",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"bio\": \"Editor working across documentary and long-form drama.\",\n  \"location\": \"Chennai, India\",\n  \"phone\": \"+91 90000 11111\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/profile/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me"]
+            },
+            "description": "The complete editable scalar representation. null clears an optional field. Skills, experience, photo, email and role are untouched."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('saved', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update own profile — injected role (422)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"bio\": null,\n  \"location\": null,\n  \"phone\": null,\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/profile/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "me"]
+            },
+            "description": "The strict schema rejects server-managed fields instead of silently ignoring them."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('privileged field rejected', function () { pm.response.to.have.status(422); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public profile by id",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/{{profileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "{{profileId}}"]
+            },
+            "description": "No authentication. Run 'Get own profile' first to populate {{profileId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('readable without login', function () { pm.response.to.have.status(200); });",
+                  "pm.test('private fields absent', function () {",
+                  "  const profile = pm.response.json().data.profile;",
+                  "  pm.expect(profile).to.not.have.property('email');",
+                  "  pm.expect(profile).to.not.have.property('phone');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add skill",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Avid Media Composer\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/profile/skills",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "skills"]
+            },
+            "description": "201 on a new link, 200 when the skill is already on the profile. Skill identity is normalized, so casing and extra spaces do not create duplicates."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('added or already present', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "const skill = pm.response.json().data.skill;",
+                  "if (skill) pm.environment.set('profileSkillId', skill.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove skill",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/skills/{{profileSkillId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "skills", "{{profileSkillId}}"]
+            },
+            "description": "The id is a ProfileSkill.id (the join row). Only the caller's link is deleted; the shared Skill row and other profiles are untouched."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('removed', function () { pm.response.to.have.status(204); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create experience",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Lead Editor\",\n  \"organization\": \"Monsoon Pictures\",\n  \"description\": \"Feature documentary.\",\n  \"startDate\": \"2023-04-01\",\n  \"endDate\": \"2023-11-30\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/profile/experience",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "experience"]
+            },
+            "description": "Calendar dates as YYYY-MM-DD. Omit endDate or send null for an ongoing engagement."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', function () { pm.response.to.have.status(201); });",
+                  "const experience = pm.response.json().data.experience;",
+                  "if (experience) pm.environment.set('experienceId', experience.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create experience — reversed dates (422)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Impossible Credit\",\n  \"organization\": \"Nowhere\",\n  \"startDate\": \"2024-05-01\",\n  \"endDate\": \"2024-01-01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/profile/experience",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "experience"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('chronology enforced', function () {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().error.fieldErrors).to.have.property('endDate');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update experience",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Supervising Editor\",\n  \"organization\": \"Monsoon Pictures\",\n  \"description\": null,\n  \"startDate\": \"2023-04-01\",\n  \"endDate\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/profile/experience/{{experienceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "experience", "{{experienceId}}"]
+            },
+            "description": "Ownership is part of the database predicate: another user's id returns 404 and changes nothing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('updated', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete experience",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/experience/{{experienceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "experience", "{{experienceId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('deleted', function () { pm.response.to.have.status(204); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload photo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "src": [],
+                  "description": "Pick a local JPEG, PNG or WebP (max 5 MiB, max 6000 px per side). Leave Content-Type unset so Postman supplies the multipart boundary."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/profile/photo",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "photo"]
+            },
+            "description": "The file is decoded and re-encoded to a 512x512 WebP before the profile row is updated, so a rejected image never disturbs the current photo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('uploaded', function () { pm.response.to.have.status(200); });",
+                  "pm.test('served from the Express media origin', function () {",
+                  "  const url = pm.response.json().data.profile.photoUrl;",
+                  "  pm.expect(url).to.include('/media/profile-photos/');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove photo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profile/photo",
+              "host": ["{{baseUrl}}"],
+              "path": ["profile", "photo"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('removed', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List users — non-admin (403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?page=1&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            },
+            "description": "With the token of any non-admin account. Role policy is enforced server-side, not by hiding the link."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denied for non-admin', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List users — admin (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}",
+                "description": "Log in as an admin account first and store its access token in adminAccessToken. There is no API that creates an admin."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?page=1&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "pageSize", "value": "20" }
+              ]
+            },
+            "description": "Read-only, paginated, safe projection. This is a policy demonstration, not an admin dashboard."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('allowed for admin', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Fail loudly rather than sending an empty credential.",
+          "['baseUrl', 'email', 'password'].forEach(function (key) {",
+          "  if (!pm.environment.get(key)) {",
+          "    throw new Error('Set ' + key + ' in the Abhinay Local environment before running this request.');",
+          "  }",
+          "});",
+          "",
+          "// The cookie-authenticated endpoints require this non-simple header.",
+          "// One request deliberately omits it to show the 403.",
+          "if (pm.info.requestName.indexOf('without the client header') === -1) {",
+          "  pm.request.headers.upsert({ key: 'X-Abhinay-Client', value: 'web' });",
+          "} else {",
+          "  pm.request.headers.remove('X-Abhinay-Client');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "protocolProfileBehavior": { "disableBodyPruning": true }
+}

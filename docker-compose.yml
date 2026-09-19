@@ -4,7 +4,7 @@ services:
     container_name: abhinay-postgres
     restart: unless-stopped
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - '${POSTGRES_PORT:-5432}:5432'
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-abhinay}
       POSTGRES_USER: ${POSTGRES_USER:-abhinay_user}
@@ -12,7 +12,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-abhinay_user} -d ${POSTGRES_DB:-abhinay}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-abhinay_user} -d ${POSTGRES_DB:-abhinay}']
       interval: 10s
       timeout: 5s
       retries: 5

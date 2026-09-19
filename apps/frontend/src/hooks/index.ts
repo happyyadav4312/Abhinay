@@ -1,2 +1,1 @@
-// Custom hooks barrel export
-// Add custom React hooks here (useAuth, useApi, etc.)
+export { AuthProvider, useAuth } from './useAuth';

@@ -10,6 +10,7 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/', 'node_modules/', 'prisma/'],
+    // Generated SQL is not lintable TypeScript; prisma/seed.ts is.
+    ignores: ['dist/', 'node_modules/', 'prisma/migrations/'],
   }
 );

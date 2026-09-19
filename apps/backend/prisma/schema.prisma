@@ -1,5 +1,11 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Abhinay — Prisma schema
+// Scope: WBS 1.1 User Management & Profiles (1.1.1 auth, 1.1.2 profiles).
+// Casting, applications, messaging and project tables are deliberately out of scope.
+//
+// Conventions (established in the initial migration and kept here):
+//   - Model names PascalCase, table names snake_case plural via @@map.
+//   - Column names snake_case via @map.
+//   - Primary keys are opaque UUID strings stored as TEXT.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,6 +17,7 @@ datasource db {
 }
 
 // ── Role Enum ──────────────────────────────────────────
+// ADMIN is never selectable during public registration; it is assigned out of band.
 enum Role {
   ACTOR
   DIRECTOR
@@ -21,16 +28,111 @@ enum Role {
   ADMIN
 }
 
-// ── User Model ─────────────────────────────────────────
-// Foundation model for authentication and future expansion.
-// Profile, project, casting, and application tables will reference this model.
+// ── User ───────────────────────────────────────────────
+// `name` is the single authoritative display name; Profile does not duplicate it.
+// `email` is stored already trimmed and lowercased by the auth service.
 model User {
   id           String   @id @default(uuid())
+  name         String
   email        String   @unique
   passwordHash String   @map("password_hash")
   role         Role     @default(ACTOR)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  profile       Profile?
+  refreshTokens RefreshToken[]
+
   @@map("users")
+}
+
+// ── Profile ────────────────────────────────────────────
+// Exactly one profile per user, created in the same transaction as the user.
+// Deleting a user cascades to the profile (and onwards to skills/experience).
+model Profile {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  bio          String?
+  location     String?
+  phone        String?
+  profileImage String?  @map("profile_image")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills      ProfileSkill[]
+  experiences Experience[]
+
+  @@map("profiles")
+}
+
+// ── Skill ──────────────────────────────────────────────
+// Shared vocabulary. `name` keeps the first-seen display casing, `normalizedName`
+// (trimmed, lowercased, whitespace-collapsed) carries uniqueness.
+model Skill {
+  id             String   @id @default(uuid())
+  name           String
+  normalizedName String   @unique @map("normalized_name")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  profileSkills ProfileSkill[]
+
+  @@map("skills")
+}
+
+// ── ProfileSkill ───────────────────────────────────────
+// Join record. Removing a skill from a profile deletes only this row.
+model ProfileSkill {
+  id        String   @id @default(uuid())
+  profileId String   @map("profile_id")
+  skillId   String   @map("skill_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  skill   Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, skillId])
+  @@index([skillId])
+  @@map("profile_skills")
+}
+
+// ── Experience ─────────────────────────────────────────
+// Calendar dates only (`date`, not `timestamp`) so no timezone day-shift is possible.
+// A null endDate means the engagement is ongoing.
+model Experience {
+  id           String    @id @default(uuid())
+  profileId    String    @map("profile_id")
+  title        String
+  organization String
+  description  String?
+  startDate    DateTime  @map("start_date") @db.Date
+  endDate      DateTime? @map("end_date") @db.Date
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("experiences")
+}
+
+// ── RefreshToken ───────────────────────────────────────
+// `id` is the JWT `jti`. Only the SHA-256 digest of the raw token is stored, so a
+// database leak does not hand out usable bearer tokens.
+// Rotation consumes a row by setting `revokedAt` under a conditional write, which is
+// what makes concurrent reuse of one token fail for all but one caller.
+model RefreshToken {
+  id           String    @id
+  userId       String    @map("user_id")
+  tokenHash    String    @unique @map("token_hash")
+  expiresAt    DateTime  @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+  replacedById String?   @map("replaced_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }

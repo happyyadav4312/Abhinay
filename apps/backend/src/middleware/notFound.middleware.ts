@@ -1,11 +1,8 @@
 import { Request, Response } from 'express';
+import { ErrorCode } from '../utils/errors';
+import { sendError } from '../utils/response';
 
-/**
- * 404 handler for unmatched routes.
- */
-export function notFoundHandler(_req: Request, res: Response): void {
-  res.status(404).json({
-    success: false,
-    message: `Route not found: ${_req.method} ${_req.originalUrl}`,
-  });
+/** 404 handler for unmatched routes, using the standard error envelope. */
+export function notFoundHandler(req: Request, res: Response): void {
+  sendError(res, `Route not found: ${req.method} ${req.path}`, 404, ErrorCode.NOT_FOUND);
 }

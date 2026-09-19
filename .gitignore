@@ -2,8 +2,10 @@
 node_modules/
 
 # ── Environment ──────────────────────────────────────
+# Templates (.env.example, .env.test.example) stay tracked.
 .env
 .env.local
+.env.test
 .env.*.local
 
 # ── Build Output ─────────────────────────────────────
@@ -13,7 +15,8 @@ build/
 out/
 
 # ── Prisma ───────────────────────────────────────────
-apps/api/prisma/migrations/**/migration_lock.toml
+# Migrations and migration_lock.toml are intentionally tracked — they are the
+# reviewable record of every schema change.
 
 # ── IDE / Editor ─────────────────────────────────────
 .vscode/
@@ -36,6 +39,16 @@ yarn-error.log*
 
 # ── Testing ──────────────────────────────────────────
 coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# ── Local uploads ────────────────────────────────────
+# Uploaded profile images are user data, never committed.
+storage/
+storage-test/
+storage-e2e/
 
 # ── Misc ─────────────────────────────────────────────
 *.tsbuildinfo

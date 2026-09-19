@@ -1,36 +1,52 @@
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
+import { prisma } from '../config/database';
+import { ErrorCode, unauthenticated } from '../utils/errors';
 import { verifyAccessToken } from '../utils/jwt';
-import { sendError } from '../utils/response';
 import { AuthenticatedRequest } from '../types';
 
 /**
- * Authentication middleware.
- * Reads the Bearer token from the Authorization header,
- * validates the JWT, and attaches the authenticated user to the request.
+ * Verify the Bearer access token and attach the current user.
+ *
+ * The role is read from the database on every request rather than trusted from
+ * the JWT claim, so a demotion takes effect immediately instead of lingering
+ * until the token expires.
  */
-export function authenticate(
+export async function authenticate(
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
-): void {
-  const authHeader = req.headers.authorization;
+): Promise<void> {
+  const header = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    sendError(res, 'Access token is required', 401);
+  if (!header || !header.startsWith('Bearer ')) {
+    next(unauthenticated('Access token is required'));
     return;
   }
 
-  const token = authHeader.split(' ')[1];
-
-  try {
-    const decoded = verifyAccessToken(token);
-    (req as AuthenticatedRequest).user = {
-      id: decoded.id,
-      email: decoded.email,
-      role: decoded.role,
-    };
-    next();
-  } catch {
-    sendError(res, 'Invalid or expired access token', 401);
+  const token = header.slice('Bearer '.length).trim();
+  if (!token) {
+    next(unauthenticated('Access token is required'));
+    return;
   }
+
+  let subject: string;
+  try {
+    subject = verifyAccessToken(token).sub;
+  } catch {
+    next(unauthenticated('Invalid or expired access token', ErrorCode.INVALID_TOKEN));
+    return;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: subject },
+    select: { id: true, email: true, role: true },
+  });
+
+  if (!user) {
+    next(unauthenticated('Invalid or expired access token', ErrorCode.INVALID_TOKEN));
+    return;
+  }
+
+  (req as AuthenticatedRequest).user = user;
+  next();
 }
