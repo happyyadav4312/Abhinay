@@ -1,4 +1,13 @@
-import { Experience, Prisma, ProfileSkill, Role, Skill, User } from '@prisma/client';
+import {
+  ApplicationStatus,
+  CastingRoleStatus,
+  Experience,
+  Prisma,
+  ProfileSkill,
+  Role,
+  Skill,
+  User,
+} from '@prisma/client';
 import { env } from '../config/env';
 import { PUBLIC_MEDIA_PATH } from '../config/storage';
 import { toCalendarDateString } from '../validators/common';
@@ -130,5 +139,186 @@ export function toOwnProfile(profile: ProfileWithRelations): OwnProfileDto {
     phone: profile.phone,
     createdAt: profile.createdAt.toISOString(),
     updatedAt: profile.updatedAt.toISOString(),
+  };
+}
+
+// ── Casting ─────────────────────────────────────────────
+
+export interface PaginationDto {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export function toPagination(page: number, pageSize: number, total: number): PaginationDto {
+  return { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
+}
+
+/**
+ * Who posted a casting role, as shown to applicants. The same public facts as a
+ * public profile: never the poster's email, phone or user id.
+ */
+export interface CastingPosterDto {
+  /** Profile.id, used to link to the public profile page. */
+  profileId: string | null;
+  name: string;
+  role: Role;
+  photoUrl: string | null;
+}
+
+/** A list entry: enough to scan results without the full text of every role. */
+export interface CastingRoleSummaryDto {
+  id: string;
+  title: string;
+  seekingRole: Role;
+  location: string;
+  compensation: string;
+  descriptionPreview: string;
+  status: CastingRoleStatus;
+  publishedAt: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  postedBy: CastingPosterDto;
+}
+
+/** The viewer's own application to a role, as shown on the role page. */
+export interface MyApplicationDto {
+  id: string;
+  status: ApplicationStatus;
+  createdAt: string;
+}
+
+export interface CastingRoleDto extends Omit<CastingRoleSummaryDto, 'descriptionPreview'> {
+  description: string;
+  requirements: string;
+  updatedAt: string;
+  /** True when the viewer posted this role. Drives the owner controls in the UI. */
+  isOwner: boolean;
+  /** The viewer's application to this role, if they have applied. */
+  myApplication: MyApplicationDto | null;
+  /** How many members have applied — revealed to the author only, otherwise null. */
+  applicationCount: number | null;
+}
+
+/** Prisma include for the casting projections: only the poster's public fields. */
+export const castingRoleInclude = {
+  createdBy: {
+    select: {
+      name: true,
+      role: true,
+      profile: { select: { id: true, profileImage: true } },
+    },
+  },
+} satisfies Prisma.CastingRoleInclude;
+
+type CastingRoleWithPoster = Prisma.CastingRoleGetPayload<{
+  include: typeof castingRoleInclude;
+}>;
+
+/**
+ * The detail include adds, in the same query, the viewer's own application (at
+ * most one, by the unique constraint) and the total application count.
+ */
+export function castingRoleDetailInclude(viewerId: string) {
+  return {
+    ...castingRoleInclude,
+    applications: {
+      where: { applicantId: viewerId },
+      select: { id: true, status: true, createdAt: true },
+      take: 1,
+    },
+    _count: { select: { applications: true } },
+  } satisfies Prisma.CastingRoleInclude;
+}
+
+type CastingRoleWithViewer = Prisma.CastingRoleGetPayload<{
+  include: ReturnType<typeof castingRoleDetailInclude>;
+}>;
+
+const DESCRIPTION_PREVIEW_LENGTH = 200;
+
+/** Whitespace-collapsed and cut on a code-point boundary, so an emoji is never split. */
+function previewOf(text: string): string {
+  const characters = Array.from(text.replace(/\s+/g, ' ').trim());
+  if (characters.length <= DESCRIPTION_PREVIEW_LENGTH) return characters.join('');
+  return `${characters
+    .slice(0, DESCRIPTION_PREVIEW_LENGTH - 1)
+    .join('')
+    .trimEnd()}…`;
+}
+
+function toCastingPoster(role: CastingRoleWithPoster): CastingPosterDto {
+  return {
+    profileId: role.createdBy.profile?.id ?? null,
+    name: role.createdBy.name,
+    role: role.createdBy.role,
+    photoUrl: toPhotoUrl(role.createdBy.profile?.profileImage ?? null),
+  };
+}
+
+export function toCastingRoleSummary(role: CastingRoleWithPoster): CastingRoleSummaryDto {
+  return {
+    id: role.id,
+    title: role.title,
+    seekingRole: role.seekingRole,
+    location: role.location,
+    compensation: role.compensation,
+    descriptionPreview: previewOf(role.description),
+    status: role.status,
+    publishedAt: role.publishedAt?.toISOString() ?? null,
+    closedAt: role.closedAt?.toISOString() ?? null,
+    createdAt: role.createdAt.toISOString(),
+    postedBy: toCastingPoster(role),
+  };
+}
+
+export function toCastingRole(role: CastingRoleWithViewer, viewerId: string): CastingRoleDto {
+  const isOwner = role.createdById === viewerId;
+  const mine = role.applications[0];
+
+  return {
+    id: role.id,
+    title: role.title,
+    seekingRole: role.seekingRole,
+    location: role.location,
+    compensation: role.compensation,
+    description: role.description,
+    requirements: role.requirements,
+    status: role.status,
+    publishedAt: role.publishedAt?.toISOString() ?? null,
+    closedAt: role.closedAt?.toISOString() ?? null,
+    createdAt: role.createdAt.toISOString(),
+    updatedAt: role.updatedAt.toISOString(),
+    postedBy: toCastingPoster(role),
+    isOwner,
+    myApplication: mine
+      ? { id: mine.id, status: mine.status, createdAt: mine.createdAt.toISOString() }
+      : null,
+    applicationCount: isOwner ? role._count.applications : null,
+  };
+}
+
+// ── Applications ────────────────────────────────────────
+
+/** One of the caller's applications, with the role it was made to. */
+export interface ApplicationDto extends MyApplicationDto {
+  updatedAt: string;
+  castingRole: CastingRoleSummaryDto;
+}
+
+export const applicationInclude = {
+  castingRole: { include: castingRoleInclude },
+} satisfies Prisma.ApplicationInclude;
+
+type ApplicationWithRole = Prisma.ApplicationGetPayload<{ include: typeof applicationInclude }>;
+
+export function toApplication(application: ApplicationWithRole): ApplicationDto {
+  return {
+    id: application.id,
+    status: application.status,
+    createdAt: application.createdAt.toISOString(),
+    updatedAt: application.updatedAt.toISOString(),
+    castingRole: toCastingRoleSummary(application.castingRole),
   };
 }

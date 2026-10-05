@@ -91,7 +91,7 @@ test.describe('Authentication journey', () => {
 
     await expect(page.getByText('Name must be at least 2 characters')).toBeVisible();
     await expect(page.getByText('Email is required')).toBeVisible();
-    await expect(page.getByText('Password must be at least 12 characters')).toBeVisible();
+    await expect(page.getByText('Password must be at least 6 characters')).toBeVisible();
     await expect(page).toHaveURL('/register');
 
     // Client-side confirmation mismatch.

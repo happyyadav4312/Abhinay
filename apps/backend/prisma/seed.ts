@@ -31,8 +31,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (password.length < 12 || Buffer.byteLength(password, 'utf8') > 72) {
-    throw new Error('SEED_ADMIN_PASSWORD must be 12-72 bytes, matching the API password policy.');
+  if (password.length < 6 || Buffer.byteLength(password, 'utf8') > 72) {
+    throw new Error(
+      'SEED_ADMIN_PASSWORD must be at least 6 characters and at most 72 bytes, matching the API password policy.'
+    );
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });

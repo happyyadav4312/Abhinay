@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Abhinay — Auth & Profiles (WBS 1.1)",
-    "description": "Abhinay API, Weeks 1-5 scope: authentication, RBAC and professional profiles.\n\nSetup\n1. Import `abhinay.local.postman_environment.json` and select it.\n2. Start the API: `npm run dev:backend`.\n3. Run `Auth / Register` — it stores `accessToken` and `profileId` in the environment automatically.\n\nNotes\n- No credentials or tokens are bundled. `email` and `password` come from the environment; set your own before running.\n- Postman keeps the HttpOnly `refreshToken` cookie in its cookie jar, so Refresh and Logout work without any manual copying.\n- `X-Abhinay-Client: web` is set at collection level because the cookie-authenticated endpoints require it.\n- Requests sent from Postman have no `Origin` header, which the API treats as a non-browser client.",
+    "name": "Abhinay — Auth, Profiles & Casting (WBS 1.1, 1.2)",
+    "description": "Abhinay API: authentication, RBAC and professional profiles (WBS 1.1), plus casting role posting and discovery (WBS 1.2.1, 1.2.2.1).\n\nSetup\n1. Import `abhinay.local.postman_environment.json` and select it.\n2. Start the API: `npm run dev:backend`.\n3. Run `Auth / Register` — it stores `accessToken` and `profileId` in the environment automatically.\n\nNotes\n- No credentials or tokens are bundled. `email` and `password` come from the environment; set your own before running.\n- Postman keeps the HttpOnly `refreshToken` cookie in its cookie jar, so Refresh and Logout work without any manual copying.\n- `X-Abhinay-Client: web` is set at collection level because the cookie-authenticated endpoints require it.\n- Requests sent from Postman have no `Origin` header, which the API treats as a non-browser client.\n- The Casting folder registers its own throwaway producer and stores its token in `producerAccessToken`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -65,10 +65,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('registered', function () { pm.response.to.have.status(201); });",
-                  "const data = pm.response.json().data;",
-                  "if (data && data.accessToken) {",
-                  "  pm.environment.set('accessToken', data.accessToken);",
-                  "  pm.environment.set('userId', data.user.id);",
+                  "const payload = pm.response.json().data;",
+                  "if (payload && payload.accessToken) {",
+                  "  pm.environment.set('accessToken', payload.accessToken);",
+                  "  pm.environment.set('userId', payload.user.id);",
                   "}"
                 ]
               }
@@ -161,8 +161,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('logged in', function () { pm.response.to.have.status(200); });",
-                  "const data = pm.response.json().data;",
-                  "if (data && data.accessToken) pm.environment.set('accessToken', data.accessToken);"
+                  "const payload = pm.response.json().data;",
+                  "if (payload && payload.accessToken) pm.environment.set('accessToken', payload.accessToken);"
                 ]
               }
             }
@@ -260,8 +260,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('rotated', function () { pm.response.to.have.status(200); });",
-                  "const data = pm.response.json().data;",
-                  "if (data && data.accessToken) pm.environment.set('accessToken', data.accessToken);"
+                  "const payload = pm.response.json().data;",
+                  "if (payload && payload.accessToken) pm.environment.set('accessToken', payload.accessToken);"
                 ]
               }
             }
@@ -671,6 +671,845 @@
               "script": {
                 "type": "text/javascript",
                 "exec": ["pm.test('removed', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Casting",
+      "description": "WBS 1.2.1 casting role posting and 1.2.2.1 browse & search. Producers and directors post; everyone signed in browses. Run the folder in order: it registers its own throwaway producer.\n\nNote: registering the producer replaces the refresh cookie in Postman's cookie jar. Run `Auth / Login` again before `Auth / Refresh` if you need the main account's session back.",
+      "item": [
+        {
+          "name": "Register producer",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Producer\",\n  \"email\": \"{{producerEmail}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"PRODUCER\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "A fresh throwaway PRODUCER for this folder. The email is generated per run; the password reuses the environment `password`."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('producerEmail', 'producer.' + Date.now() + '@example.test');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('producer registered', function () { pm.response.to.have.status(201); });",
+                  "const payload = pm.response.json().data;",
+                  "if (payload && payload.accessToken) pm.environment.set('producerAccessToken', payload.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create casting role",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Lead — Meera, investigative journalist\",\n  \"description\": \"Meera uncovers a coastal land scam while her newspaper is being sold. Feature film, 40-day schedule.\",\n  \"requirements\": \"Female, 25–32. Fluent in Malayalam and English.\",\n  \"compensation\": \"₹15,000 per shooting day\",\n  \"location\": \"Kochi, Kerala\",\n  \"seekingRole\": \"ACTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting"]
+            },
+            "description": "Producers and directors only. Always created as a DRAFT, visible only to its author."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created as a draft', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().data.castingRole.status).to.eql('DRAFT');",
+                  "});",
+                  "pm.environment.set('castingRoleId', pm.response.json().data.castingRole.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create casting role — non-poster (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Lead — Meera, investigative journalist\",\n  \"description\": \"Meera uncovers a coastal land scam while her newspaper is being sold. Feature film, 40-day schedule.\",\n  \"requirements\": \"Female, 25–32. Fluent in Malayalam and English.\",\n  \"compensation\": \"₹15,000 per shooting day\",\n  \"location\": \"Kochi, Kerala\",\n  \"seekingRole\": \"ACTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting"]
+            },
+            "description": "With the main account's token. Assumes the environment `role` is not PRODUCER or DIRECTOR (the default is EDITOR)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('denied for non-posters', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create casting role — invalid body (422)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Lead — Meera, investigative journalist\",\n  \"description\": \"Meera uncovers a coastal land scam while her newspaper is being sold. Feature film, 40-day schedule.\",\n  \"requirements\": \"Female, 25–32. Fluent in Malayalam and English.\",\n  \"compensation\": \"₹15,000 per shooting day\",\n  \"location\": \"Kochi, Kerala\",\n  \"seekingRole\": \"ADMIN\",\n  \"status\": \"OPEN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting"]
+            },
+            "description": "ADMIN is never a casting target, and `status` is server-managed: the strict schema rejects both instead of ignoring them."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected', function () {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('VALIDATION_FAILED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish casting role",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"OPEN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{castingRoleId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{castingRoleId}}", "status"]
+            },
+            "description": "DRAFT → OPEN. Stamps `publishedAt`. Repeating it is an idempotent 200."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('published', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const role = pm.response.json().data.castingRole;",
+                  "  pm.expect(role.status).to.eql('OPEN');",
+                  "  pm.expect(role.publishedAt).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Browse open casting roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/casting?q=Meera&seekingRole=ACTOR&page=1&pageSize=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Meera"
+                },
+                {
+                  "key": "seekingRole",
+                  "value": "ACTOR"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Any signed-in user (main account). OPEN roles only, newest first. `q` matches title, description, requirements and location, ignoring case; `%` and `_` are literal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('lists the published role', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const payload = pm.response.json().data;",
+                  "  const ids = payload.castingRoles.map(function (role) { return role.id; });",
+                  "  pm.expect(ids).to.include(pm.environment.get('castingRoleId'));",
+                  "  pm.expect(payload.pagination).to.have.property('totalPages');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get casting role",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{castingRoleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{castingRoleId}}"]
+            },
+            "description": "Main account. Full text plus `isOwner`. The poster appears with their public profile facts only — never email or phone."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('readable by others, not owned by them', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const role = pm.response.json().data.castingRole;",
+                  "  pm.expect(role.isOwner).to.eql(false);",
+                  "  pm.expect(role.postedBy).to.not.have.property('email');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create role for your profession",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Supporting role for the Postman run\",\n  \"description\": \"A role cast for the main account’s own profession, so it can apply.\",\n  \"requirements\": \"Available for a two-week schedule.\",\n  \"compensation\": \"₹6,000 per day\",\n  \"location\": \"Pune\",\n  \"seekingRole\": \"{{role}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting"]
+            },
+            "description": "Casts for the environment `role` (the main account's profession), so the main account is eligible to apply."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set('applyRoleId', pm.response.json().data.castingRole.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish role for your profession",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"OPEN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{applyRoleId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{applyRoleId}}", "status"]
+            },
+            "description": "Only OPEN roles take applications."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('published', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apply to casting role",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{applyRoleId}}/applications",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{applyRoleId}}", "applications"]
+            },
+            "description": "Main account. No body: who applies comes from the token. Allowed only when the profession matches, the role is OPEN and is not your own."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('applied', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.json().data.application.status).to.eql('APPLIED');",
+                  "});",
+                  "pm.environment.set('applicationId', pm.response.json().data.application.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apply again (409)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{applyRoleId}}/applications",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{applyRoleId}}", "applications"]
+            },
+            "description": "One application per member per role."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('conflict', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('ALREADY_APPLIED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apply — wrong profession (403)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{castingRoleId}}/applications",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{castingRoleId}}", "applications"]
+            },
+            "description": "The folder's main role casts for ACTOR. Assumes the environment `role` is not ACTOR (the default is EDITOR)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('not eligible', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('NOT_ELIGIBLE');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My applications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/applications/mine",
+              "host": ["{{baseUrl}}"],
+              "path": ["applications", "mine"]
+            },
+            "description": "Main account. Most recent first, each with the role it was made to."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('lists the application', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const ids = pm.response.json().data.applications.map(function (a) { return a.id; });",
+                  "  pm.expect(ids).to.include(pm.environment.get('applicationId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My casting roles",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/casting/mine",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "mine"]
+            },
+            "description": "The caller's own roles in every status. Optional `status` filter: DRAFT, OPEN or CLOSED."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('includes the role', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const ids = pm.response.json().data.castingRoles.map(function (role) { return role.id; });",
+                  "  pm.expect(ids).to.include(pm.environment.get('castingRoleId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update casting role",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Lead — Meera (revised)\",\n  \"description\": \"Meera uncovers a coastal land scam while her newspaper is being sold. Feature film, 40-day schedule.\",\n  \"requirements\": \"Female, 25–32. Fluent in Malayalam and English.\",\n  \"compensation\": \"₹15,000 per shooting day\",\n  \"location\": \"Kochi, Kerala\",\n  \"seekingRole\": \"ACTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{castingRoleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{castingRoleId}}"]
+            },
+            "description": "Owner only. Full replacement of the editable fields; status is untouched."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('updated', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const role = pm.response.json().data.castingRole;",
+                  "  pm.expect(role.title).to.eql('Lead — Meera (revised)');",
+                  "  pm.expect(role.status).to.eql('OPEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Close casting role",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CLOSED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{castingRoleId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{castingRoleId}}", "status"]
+            },
+            "description": "OPEN → CLOSED. Final: a closed role is never reopened or edited."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('closed', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().data.castingRole.status).to.eql('CLOSED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update closed role (409)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Lead — Meera, investigative journalist\",\n  \"description\": \"Meera uncovers a coastal land scam while her newspaper is being sold. Feature film, 40-day schedule.\",\n  \"requirements\": \"Female, 25–32. Fluent in Malayalam and English.\",\n  \"compensation\": \"₹15,000 per shooting day\",\n  \"location\": \"Kochi, Kerala\",\n  \"seekingRole\": \"ACTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{castingRoleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{castingRoleId}}"]
+            },
+            "description": "Closed roles can no longer be edited."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('conflict', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('CASTING_ROLE_CLOSED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reopen closed role (409)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"OPEN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{castingRoleId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{castingRoleId}}", "status"]
+            },
+            "description": "Only DRAFT → OPEN and OPEN → CLOSED are allowed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('conflict', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('INVALID_STATUS_TRANSITION');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete published role (409)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{castingRoleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{castingRoleId}}"]
+            },
+            "description": "Only drafts can be deleted; a published role is closed instead."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('conflict', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('CASTING_ROLE_NOT_DRAFT');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create draft to delete",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Throwaway draft\",\n  \"description\": \"Meera uncovers a coastal land scam while her newspaper is being sold. Feature film, 40-day schedule.\",\n  \"requirements\": \"Female, 25–32. Fluent in Malayalam and English.\",\n  \"compensation\": \"₹15,000 per shooting day\",\n  \"location\": \"Kochi, Kerala\",\n  \"seekingRole\": \"ACTOR\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/casting",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting"]
+            },
+            "description": "A draft for the next request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('created', function () { pm.response.to.have.status(201); });",
+                  "pm.environment.set('draftCastingRoleId', pm.response.json().data.castingRole.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete draft",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{producerAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/casting/{{draftCastingRoleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["casting", "{{draftCastingRoleId}}"]
+            },
+            "description": "204 with no body."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('deleted', function () { pm.response.to.have.status(204); });"]
               }
             }
           ]

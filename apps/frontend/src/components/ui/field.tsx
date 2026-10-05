@@ -1,6 +1,6 @@
-import { ReactNode } from "react"
-import { Label } from "./label"
-import { cn } from "@/lib/utils"
+import { ReactNode } from 'react';
+import { Label } from './label';
+import { cn } from '@/lib/utils';
 
 interface FieldProps {
   label: string;
@@ -13,7 +13,7 @@ interface FieldProps {
 export function Field({ label, htmlFor, error, hint, children }: FieldProps) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={htmlFor} className={cn("text-zinc-200", error && "text-red-500")}>
+      <Label htmlFor={htmlFor} className={cn('text-zinc-200', error && 'text-red-500')}>
         {label}
       </Label>
       {children}

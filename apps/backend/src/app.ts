@@ -45,7 +45,9 @@ app.use(
       callback(null, false);
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    // PATCH is used by casting status changes; without it the browser's
+    // preflight fails before the request is ever sent.
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', CLIENT_HEADER],
     maxAge: 600,
   })

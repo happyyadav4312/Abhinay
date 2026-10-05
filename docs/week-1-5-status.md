@@ -125,7 +125,8 @@ existing user → apply `NOT NULL`.
   Versions were left as committed rather than force-upgraded. To address the
   non-breaking one deliberately:
   `npm install next@^16.3.5 --workspace=apps/frontend`, then rerun
-  `npm run verify`.
+  `npm run verify`. **Resolved in Week 9:** `next` is pinned at 16.3.8; see
+  [`week-6-9-status.md`](week-6-9-status.md).
 - **Refresh-token rows are never pruned.** Revoked and expired rows accumulate;
   periodic cleanup belongs with deployment work, which is out of scope.
 - **Rate limiting is in-process**, so it resets on restart and is per-instance.

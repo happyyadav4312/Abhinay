@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Role } from '@prisma/client';
-import { FieldErrors, validationFailed } from '../utils/errors';
+import { FieldErrors, notFound, validationFailed } from '../utils/errors';
 import { MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH } from '../utils/password';
 
 /**
@@ -21,6 +21,15 @@ export const LIMITS = {
   EXPERIENCE_ORGANIZATION_MAX: 120,
   EXPERIENCE_DESCRIPTION_MAX: 2000,
   EXPERIENCES_PER_PROFILE_MAX: 50,
+  CASTING_TITLE_MIN: 3,
+  CASTING_TITLE_MAX: 120,
+  CASTING_DESCRIPTION_MAX: 5000,
+  CASTING_REQUIREMENTS_MAX: 3000,
+  CASTING_COMPENSATION_MAX: 200,
+  CASTING_LOCATION_MAX: 120,
+  CASTING_SEARCH_MAX: 100,
+  PAGE_SIZE_DEFAULT: 20,
+  PAGE_SIZE_MAX: 50,
   JSON_BODY_BYTES: 32 * 1024,
 } as const;
 
@@ -128,3 +137,38 @@ export function parseOrThrow<T extends z.ZodTypeAny>(schema: T, input: unknown):
 
 /** Route params are opaque UUID strings; anything else is a clean 404, not a 500. */
 export const idParamSchema = z.string().uuid('Identifier must be a valid UUID');
+
+// ── List queries ────────────────────────────────────────
+
+/** A cleared filter input arrives as `?location=`; treat it as "no filter". */
+export const blankToUndefined = (value: unknown) =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value;
+
+/** `?page=` — 1-based, default 1. */
+export const pageQuerySchema = z.preprocess(
+  blankToUndefined,
+  z.coerce.number().int().min(1, 'Page must be at least 1').default(1)
+);
+
+/** `?pageSize=` — 1 to PAGE_SIZE_MAX, default PAGE_SIZE_DEFAULT. */
+export const pageSizeQuerySchema = z.preprocess(
+  blankToUndefined,
+  z.coerce
+    .number()
+    .int()
+    .min(1, 'Page size must be at least 1')
+    .max(LIMITS.PAGE_SIZE_MAX, `Page size must not exceed ${LIMITS.PAGE_SIZE_MAX}`)
+    .default(LIMITS.PAGE_SIZE_DEFAULT)
+);
+
+/**
+ * A non-UUID path parameter is a clean 404, not a validation error or a 500: to
+ * the caller a malformed id is simply a resource that does not exist.
+ */
+export function requireUuidParam(value: unknown, label: string): string {
+  const parsed = idParamSchema.safeParse(value);
+  if (!parsed.success) {
+    throw notFound(`${label} not found`);
+  }
+  return parsed.data;
+}

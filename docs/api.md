@@ -39,8 +39,10 @@ onto specific input fields. A `204` response has no body at all.
 
 `VALIDATION_FAILED` (422), `BAD_REQUEST` (400), `INVALID_CREDENTIALS` (401),
 `UNAUTHENTICATED` (401), `INVALID_TOKEN` (401), `FORBIDDEN` (403),
-`FORBIDDEN_ORIGIN` (403), `MISSING_CLIENT_HEADER` (403), `NOT_FOUND` (404),
-`EMAIL_TAKEN` (409), `PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415),
+`FORBIDDEN_ORIGIN` (403), `MISSING_CLIENT_HEADER` (403), `NOT_ELIGIBLE` (403),
+`NOT_FOUND` (404), `EMAIL_TAKEN` (409), `INVALID_STATUS_TRANSITION` (409),
+`CASTING_ROLE_CLOSED` (409), `CASTING_ROLE_NOT_DRAFT` (409), `CASTING_ROLE_NOT_OPEN` (409),
+`ALREADY_APPLIED` (409), `PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415),
 `TOO_MANY_REQUESTS` (429), `LIMIT_EXCEEDED` (422), `INTERNAL_ERROR` (500),
 `SERVICE_UNAVAILABLE` (503).
 
@@ -88,13 +90,20 @@ carries no ambient cookies and is therefore not a CSRF vector.
 | ----------------------------------- | -------------------------------------------------------------------------------------- |
 | `name`                              | 2–80 characters, trimmed                                                               |
 | `email`                             | ≤ 254 characters, trimmed and lowercased before validation, storage and lookup         |
-| `password`                          | ≥ 12 characters and ≤ 72 UTF-8 bytes; never trimmed or case-folded                     |
+| `password`                          | ≥ 6 characters and ≤ 72 UTF-8 bytes; never trimmed or case-folded                      |
 | `bio`                               | ≤ 1000 characters                                                                      |
 | `location`                          | ≤ 120 characters                                                                       |
 | `phone`                             | ≤ 32 characters, optional, never shown publicly                                        |
 | skill `name`                        | 2–40 characters, letters/numbers plus `. , ' & + / # -`; at most 30 skills per profile |
 | experience `title` / `organization` | 1–120 characters                                                                       |
 | experience `description`            | ≤ 2000 characters; at most 50 entries per profile                                      |
+| casting `title`                     | 3–120 characters, trimmed                                                              |
+| casting `description`               | 1–5000 characters, trimmed                                                             |
+| casting `requirements`              | 1–3000 characters, trimmed                                                             |
+| casting `compensation`              | 1–200 characters, trimmed (free text, e.g. "₹15,000 per shooting day")                 |
+| casting `location`                  | 1–120 characters, trimmed                                                              |
+| casting `seekingRole`               | one of the six public roles; never `ADMIN`                                             |
+| casting search `q`                  | ≤ 100 characters; `pageSize` 1–50 (default 20)                                         |
 | JSON body                           | 32 KiB; a larger body is rejected with 413                                             |
 | photo                               | one JPEG/PNG/WebP file ≤ 5 MiB, ≤ 6000 px per side before processing                   |
 
@@ -382,6 +391,262 @@ GET {PUBLIC_SERVER_URL}/media/profile-photos/<opaque-name>.webp
 The absolute URL is built from validated configuration, never from the request
 `Host` header. Filenames are generated randomly; nothing a client sent is ever
 used as a filesystem path, and the path is not under `/api`.
+
+---
+
+# Casting
+
+WBS 1.2.1 (casting role posting) and 1.2.2 (browse, search and apply).
+Producers and directors post casting roles; every signed-in user can browse and
+read them, and apply when their profession matches. Every casting endpoint
+requires `Authorization: Bearer <access token>`. Shortlists and moving an
+application's status are later increments.
+
+## Lifecycle
+
+```
+DRAFT ──publish──▶ OPEN ──close──▶ CLOSED
+```
+
+| Status   | Who can see it                                       | Editable | Deletable     |
+| -------- | ---------------------------------------------------- | -------- | ------------- |
+| `DRAFT`  | Its author only; anyone else gets `404`              | Yes      | Yes           |
+| `OPEN`   | Every signed-in user; listed by `GET /casting`       | Yes      | No — close it |
+| `CLOSED` | Every signed-in user with the link; no longer listed | No       | No            |
+
+A closed role is final: it cannot be reopened or edited.
+
+## Who may do what
+
+| Action                             | Actor / crew roles                    | Producer or director (not author)     | Author | Admin |
+| ---------------------------------- | ------------------------------------- | ------------------------------------- | ------ | ----- |
+| Browse, read `OPEN`/`CLOSED` roles | Yes                                   | Yes                                   | Yes    | Yes   |
+| Read a `DRAFT`                     | `404`                                 | `404`                                 | Yes    | `404` |
+| Create, list own (`/casting/mine`) | `403`                                 | Yes                                   | Yes    | `403` |
+| Edit, publish, close, delete       | `403`                                 | `404`                                 | Yes    | `403` |
+| Apply to an `OPEN` role            | If the profession matches, else `403` | If the profession matches, else `403` | `403`  | `403` |
+
+Without a token every endpoint answers `401`. The role check runs before the
+ownership check, so a non-poster always gets `403`; a poster touching another
+poster's role gets `404`, exactly as for an id that does not exist.
+
+## Casting role object
+
+```json
+{
+  "id": "6c1e…",
+  "title": "Lead — Meera, investigative journalist",
+  "seekingRole": "ACTOR",
+  "location": "Kochi, Kerala",
+  "compensation": "₹15,000 per shooting day",
+  "description": "Meera uncovers a coastal land scam while her newspaper is being sold.",
+  "requirements": "Female, 25–32. Fluent in Malayalam and English.",
+  "status": "OPEN",
+  "publishedAt": "2026-10-05T09:30:00.000Z",
+  "closedAt": null,
+  "createdAt": "2026-10-05T09:12:00.000Z",
+  "updatedAt": "2026-10-05T09:30:00.000Z",
+  "postedBy": {
+    "profileId": "0f3c…",
+    "name": "Priya Menon",
+    "role": "PRODUCER",
+    "photoUrl": null
+  },
+  "isOwner": false,
+  "myApplication": { "id": "9a41…", "status": "APPLIED", "createdAt": "2026-10-05T10:02:00.000Z" },
+  "applicationCount": null
+}
+```
+
+`postedBy` carries the poster's public profile facts only — never their email,
+phone or user id. `profileId` links to `GET /profile/:id`. Three fields are
+computed for the caller:
+
+- `isOwner` — whether the caller posted the role.
+- `myApplication` — the caller's own application to it, or `null`.
+- `applicationCount` — how many members have applied, revealed to the **author
+  only**; `null` for everyone else. Who applied is not part of this increment.
+
+List endpoints return a **summary** of each role: the same fields without
+`description`, `requirements`, `updatedAt`, `isOwner`, `myApplication` and
+`applicationCount`, plus a `descriptionPreview` of at most 200 characters
+(whitespace collapsed, cut with `…`).
+
+## POST /casting
+
+Bearer, `PRODUCER` or `DIRECTOR`. Always creates a `DRAFT`.
+
+```json
+{
+  "title": "Lead — Meera, investigative journalist",
+  "description": "Meera uncovers a coastal land scam while her newspaper is being sold.",
+  "requirements": "Female, 25–32. Fluent in Malayalam and English.",
+  "compensation": "₹15,000 per shooting day",
+  "location": "Kochi, Kerala",
+  "seekingRole": "ACTOR"
+}
+```
+
+`201 { "castingRole": { … } }`. Every field is required and trimmed.
+`seekingRole` is the profession being sought. `status`, `createdById`,
+`publishedAt` or any other unknown key fails with `422` rather than being
+ignored: status only changes through `PATCH /casting/:id/status`, and ownership
+always comes from the token.
+
+Failures: `422 VALIDATION_FAILED`, `403 FORBIDDEN` (any other role, including
+`ADMIN`), `403 FORBIDDEN_ORIGIN`, `401`.
+
+## GET /casting
+
+Bearer. Browse `OPEN` roles, newest first (`publishedAt` descending, `id` as the
+tie-break).
+
+| Query         | Rule                                                                                    |
+| ------------- | --------------------------------------------------------------------------------------- |
+| `q`           | ≤ 100 characters. Matches title, description, requirements and location, ignoring case. |
+| `seekingRole` | One of the six public roles.                                                            |
+| `location`    | ≤ 120 characters. Substring of the location, ignoring case.                             |
+| `page`        | ≥ 1, default 1. A page past the end returns an empty list.                              |
+| `pageSize`    | 1–50, default 20.                                                                       |
+
+Empty values (`?location=`) mean "no filter". Unknown keys and repeated values
+fail with `422`. `%` and `_` in `q` and `location` are matched literally, not as
+wildcards.
+
+```json
+{
+  "success": true,
+  "message": "Casting roles retrieved",
+  "data": {
+    "castingRoles": [{ "id": "6c1e…", "title": "…", "descriptionPreview": "…", "…": "…" }],
+    "pagination": { "page": 1, "pageSize": 20, "total": 1, "totalPages": 1 }
+  }
+}
+```
+
+## GET /casting/mine
+
+Bearer, `PRODUCER` or `DIRECTOR`. The caller's own roles in every status, most
+recently created first. Query: `status` (`DRAFT`, `OPEN` or `CLOSED`), `page`,
+`pageSize`. Same response shape as `GET /casting`.
+
+The literal `/mine` is registered before `/:id`, so a non-poster gets `403`
+here, never a `404` from the id route.
+
+## GET /casting/:id
+
+Bearer. `200 { "castingRole": { … } }`.
+
+Failures: `404 NOT_FOUND` for an unknown or malformed id, and for a `DRAFT` the
+caller did not write — indistinguishable from an id that was never used, so
+drafts cannot be discovered by probing.
+
+## PUT /casting/:id
+
+Bearer, `PRODUCER` or `DIRECTOR`, author only. Same body as create; replaces
+every editable field and leaves the status alone. `200` with the updated role.
+
+Failures: `409 CASTING_ROLE_CLOSED`, `404 NOT_FOUND` (unknown, or not yours),
+`403 FORBIDDEN`, `422 VALIDATION_FAILED`.
+
+## PATCH /casting/:id/status
+
+Bearer, `PRODUCER` or `DIRECTOR`, author only.
+
+```json
+{ "status": "OPEN" }
+```
+
+| From     | To       | Result                          |
+| -------- | -------- | ------------------------------- |
+| `DRAFT`  | `OPEN`   | `200`, stamps `publishedAt`     |
+| `OPEN`   | `CLOSED` | `200`, stamps `closedAt`        |
+| any      | same     | `200`, no change (idempotent)   |
+| `DRAFT`  | `CLOSED` | `409 INVALID_STATUS_TRANSITION` |
+| `CLOSED` | `OPEN`   | `409 INVALID_STATUS_TRANSITION` |
+
+`DRAFT` is not a valid target (`422`). The required source status is part of
+the database update, so when the same transition is requested concurrently it
+happens exactly once and every caller sees the same `publishedAt`.
+
+## DELETE /casting/:id
+
+Bearer, `PRODUCER` or `DIRECTOR`, author only. Drafts only: `204` with no body.
+A published or closed role answers `409 CASTING_ROLE_NOT_DRAFT` — close it
+instead, so anyone who saw it can still follow the link.
+
+---
+
+# Applications
+
+WBS 1.2.2.2. A member applies to an open casting role with their public profile;
+there is no body to fill in. Every application starts as `APPLIED`; the other
+Lab 2 statuses — `SHORTLISTED`, `SELECTED`, `REJECTED` — are set by the role's
+author in WBS 1.3. Applications cannot be withdrawn.
+
+## Application object
+
+```json
+{
+  "id": "9a41…",
+  "status": "APPLIED",
+  "createdAt": "2026-10-05T10:02:00.000Z",
+  "updatedAt": "2026-10-05T10:02:00.000Z",
+  "castingRole": { "id": "6c1e…", "title": "…", "status": "OPEN", "…": "…" }
+}
+```
+
+`castingRole` is the role summary described under
+[Casting role object](#casting-role-object).
+
+## POST /casting/:id/applications
+
+Bearer, any role. No body — who applies always comes from the token, and any
+key in the body (such as `applicantId` or `status`) fails with `422`.
+
+`201 { "application": { … } }`.
+
+The checks, in order:
+
+| Condition                                               | Response                    |
+| ------------------------------------------------------- | --------------------------- |
+| The role does not exist, or is someone else's `DRAFT`   | `404 NOT_FOUND`             |
+| The caller is the role's author                         | `403 NOT_ELIGIBLE`          |
+| The role is not `OPEN`                                  | `409 CASTING_ROLE_NOT_OPEN` |
+| The caller's profession is not the role's `seekingRole` | `403 NOT_ELIGIBLE`          |
+| The caller has already applied                          | `409 ALREADY_APPLIED`       |
+
+The profession is the caller's **current** role, read from the database, as for
+every authorization decision. One application per member per role is enforced by
+a unique constraint, so concurrent attempts create exactly one. The role row is
+locked while the application is written, so an application never lands on a
+role that was closed first.
+
+Other failures: `403 FORBIDDEN_ORIGIN`, `401`.
+
+## GET /applications/mine
+
+Bearer. The caller's own applications, most recent first.
+
+| Query      | Rule                                               |
+| ---------- | -------------------------------------------------- |
+| `status`   | `APPLIED`, `SHORTLISTED`, `SELECTED` or `REJECTED` |
+| `page`     | ≥ 1, default 1                                     |
+| `pageSize` | 1–50, default 20                                   |
+
+```json
+{
+  "success": true,
+  "message": "Your applications retrieved",
+  "data": {
+    "applications": [{ "id": "9a41…", "status": "APPLIED", "castingRole": { "…": "…" } }],
+    "pagination": { "page": 1, "pageSize": 20, "total": 1, "totalPages": 1 }
+  }
+}
+```
+
+An application stays listed after its role closes; `castingRole.status` then
+reads `CLOSED`. Unknown query keys fail with `422`.
 
 ---
 

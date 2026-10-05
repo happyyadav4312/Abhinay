@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { badRequest, notFound } from '../utils/errors';
+import { badRequest } from '../utils/errors';
 import { sendNoContent, sendSuccess } from '../utils/response';
 import { AuthenticatedRequest } from '../types';
-import { idParamSchema, parseOrThrow } from '../validators/common';
+import { parseOrThrow, requireUuidParam } from '../validators/common';
 import {
   addSkillSchema,
   createExperienceSchema,
@@ -13,15 +13,6 @@ import * as profileService from '../services/profile.service';
 
 function currentUserId(req: Request): string {
   return (req as AuthenticatedRequest).user.id;
-}
-
-/** A non-UUID path parameter is a clean 404, not a validation error or a 500. */
-function requireUuidParam(value: unknown, label: string): string {
-  const parsed = idParamSchema.safeParse(value);
-  if (!parsed.success) {
-    throw notFound(`${label} not found`);
-  }
-  return parsed.data;
 }
 
 /** GET /api/v1/profile/me */

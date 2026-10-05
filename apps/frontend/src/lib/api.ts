@@ -1,4 +1,19 @@
-import type { Experience, OwnProfile, PublicProfile, Role, Skill, User } from '@/types';
+import type {
+  Application,
+  ApplicationStatus,
+  CastingRole,
+  CastingRoleInput,
+  CastingRoleStatus,
+  CastingRoleSummary,
+  Experience,
+  OwnProfile,
+  Pagination,
+  PublicProfile,
+  PublicRole,
+  Role,
+  Skill,
+  User,
+} from '@/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1').replace(
   /\/+$/,
@@ -292,4 +307,89 @@ export const healthApi = {
     request<{ api: string; database: string; timestamp: string; environment: string }>('/health', {
       signal,
     }),
+};
+
+/** `?a=1&b=2`, leaving out empty values so the API never receives a blank filter. */
+function toQueryString(params: object): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue;
+    search.set(key, String(value));
+  }
+  const query = search.toString();
+  return query ? `?${query}` : '';
+}
+
+export interface CastingListParams {
+  q?: string;
+  seekingRole?: PublicRole;
+  location?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface CastingMineParams {
+  status?: CastingRoleStatus;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface CastingRolePage {
+  castingRoles: CastingRoleSummary[];
+  pagination: Pagination;
+}
+
+export const castingApi = {
+  /** Open roles only, newest first. */
+  list: (params: CastingListParams = {}, signal?: AbortSignal) =>
+    request<CastingRolePage>(`/casting${toQueryString(params)}`, { signal }),
+
+  /** The caller's own roles in every status (producers and directors). */
+  mine: (params: CastingMineParams = {}, signal?: AbortSignal) =>
+    request<CastingRolePage>(`/casting/mine${toQueryString(params)}`, { signal }),
+
+  get: (id: string, signal?: AbortSignal) =>
+    request<{ castingRole: CastingRole }>(`/casting/${encodeURIComponent(id)}`, { signal }),
+
+  /** Always creates a DRAFT; publishing is a separate `setStatus` call. */
+  create: (input: CastingRoleInput) =>
+    request<{ castingRole: CastingRole }>('/casting', { method: 'POST', body: input }),
+
+  update: (id: string, input: CastingRoleInput) =>
+    request<{ castingRole: CastingRole }>(`/casting/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: input,
+    }),
+
+  setStatus: (id: string, status: 'OPEN' | 'CLOSED') =>
+    request<{ castingRole: CastingRole }>(`/casting/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: { status },
+    }),
+
+  /** Drafts only; a published role is closed instead. */
+  remove: (id: string) => request<void>(`/casting/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  /** Apply as the signed-in member. No body: the server knows who is applying. */
+  apply: (id: string) =>
+    request<{ application: Application }>(`/casting/${encodeURIComponent(id)}/applications`, {
+      method: 'POST',
+    }),
+};
+
+export interface ApplicationsMineParams {
+  status?: ApplicationStatus;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ApplicationPage {
+  applications: Application[];
+  pagination: Pagination;
+}
+
+export const applicationsApi = {
+  /** The signed-in member's applications, most recent first. */
+  mine: (params: ApplicationsMineParams = {}, signal?: AbortSignal) =>
+    request<ApplicationPage>(`/applications/mine${toQueryString(params)}`, { signal }),
 };

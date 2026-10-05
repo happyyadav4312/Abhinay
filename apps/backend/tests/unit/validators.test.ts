@@ -29,9 +29,9 @@ describe('email normalization', () => {
 });
 
 describe('password policy', () => {
-  it('requires at least 12 characters', () => {
-    expect(passwordSchema.safeParse('elevenchars').success).toBe(false);
-    expect(passwordSchema.safeParse('twelvechars!').success).toBe(true);
+  it('requires at least 6 characters', () => {
+    expect(passwordSchema.safeParse('five5').success).toBe(false);
+    expect(passwordSchema.safeParse('sixsix').success).toBe(true);
   });
 
   it('caps input at 72 UTF-8 bytes, counting bytes not characters', () => {
@@ -166,6 +166,6 @@ describe('field error flattening', () => {
 
     const fieldErrors = toFieldErrors(result.error);
     expect(Object.keys(fieldErrors).sort()).toEqual(['email', 'name', 'password', 'role']);
-    expect(fieldErrors.password[0]).toMatch(/at least 12/);
+    expect(fieldErrors.password[0]).toMatch(/at least 6/);
   });
 });

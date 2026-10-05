@@ -4,8 +4,10 @@ PostgreSQL accessed through Prisma. Schema:
 `apps/backend/prisma/schema.prisma`. Migrations:
 `apps/backend/prisma/migrations/`.
 
-Scope is WBS 1.1 (accounts and professional profiles). There are no casting,
-application, messaging or project tables, and none are planned in this phase.
+Scope is WBS 1.1 (accounts and professional profiles) and WBS 1.2 up to
+applying (casting role posting, discovery and applications). There are no
+shortlist, messaging or project tables yet; each arrives with its own work
+package.
 
 ## Conventions
 
@@ -15,8 +17,8 @@ application, messaging or project tables, and none are planned in this phase.
   meaningful.
 - `createdAt` is set on insert; `updatedAt` is maintained by Prisma on write.
 - Every child row cascades from its parent, so deleting a user removes their
-  profile, skill links, experiences and refresh tokens and leaves nothing
-  dangling.
+  profile, skill links, experiences, refresh tokens, casting roles and
+  applications and leaves nothing dangling.
 
 ## Tables
 
@@ -100,10 +102,77 @@ Rotation consumes a row with a conditional write
 (`UPDATE … WHERE id = $1 AND revoked_at IS NULL`). PostgreSQL serialises the
 two writes, so two simultaneous uses of one token cannot both succeed.
 
-## Role enum
+### casting_roles
 
-`ACTOR`, `DIRECTOR`, `PRODUCER`, `CAMERA_OPERATOR`, `EDITOR`, `OTHER_CREW`,
-`ADMIN`. Only the first six are selectable at registration.
+A casting call posted by a producer or director (WBS 1.2.1).
+
+| Column                      | Type              | Constraints                                | Notes                                                |
+| --------------------------- | ----------------- | ------------------------------------------ | ---------------------------------------------------- |
+| `id`                        | TEXT              | PK                                         | UUID                                                 |
+| `created_by_id`             | TEXT              | FK → `users.id` ON DELETE CASCADE, indexed | The author; part of every mutation predicate         |
+| `title`                     | TEXT              | NOT NULL                                   | 3–120 characters                                     |
+| `description`               | TEXT              | NOT NULL                                   | ≤ 5000 characters                                    |
+| `requirements`              | TEXT              | NOT NULL                                   | ≤ 3000 characters                                    |
+| `compensation`              | TEXT              | NOT NULL                                   | Free text, ≤ 200 characters                          |
+| `location`                  | TEXT              | NOT NULL                                   | ≤ 120 characters                                     |
+| `seeking_role`              | Role              | NOT NULL                                   | The profession sought; the API never accepts `ADMIN` |
+| `status`                    | CastingRoleStatus | NOT NULL, default `DRAFT`                  |                                                      |
+| `published_at`              | TIMESTAMP         | NULL                                       | Set on DRAFT → OPEN; the browse ordering             |
+| `closed_at`                 | TIMESTAMP         | NULL                                       | Set on OPEN → CLOSED                                 |
+| `created_at` / `updated_at` | TIMESTAMP         | NOT NULL                                   |                                                      |
+
+Indexes: `(created_by_id)` for "my postings", `(status, published_at)` for the
+newest-first browse list, `(status, seeking_role)` for the role filter.
+
+Ownership and the lifecycle are enforced in the write itself, as with
+experiences and refresh tokens: an edit is `UPDATE … WHERE id = $1 AND
+created_by_id = $2 AND status IN ('DRAFT', 'OPEN')`, a status change requires
+the expected source status, and a delete requires `status = 'DRAFT'`. A write
+that matches no row is then explained as `404` (not the caller's) or `409`
+(wrong status).
+
+Text search is a case-insensitive substring match (`ILIKE`) over title,
+description, requirements and location, with `%`, `_` and `\` escaped so user
+input is never a wildcard. That is a sequential scan, which is fine at this
+scale; a `pg_trgm` index is the upgrade path if the table grows large.
+
+### applications
+
+One member's application to one casting role (WBS 1.2.2.2).
+
+| Column                      | Type              | Constraints                               | Notes                                    |
+| --------------------------- | ----------------- | ----------------------------------------- | ---------------------------------------- |
+| `id`                        | TEXT              | PK                                        | UUID                                     |
+| `casting_role_id`           | TEXT              | FK → `casting_roles.id` ON DELETE CASCADE |                                          |
+| `applicant_id`              | TEXT              | FK → `users.id` ON DELETE CASCADE         |                                          |
+| `status`                    | ApplicationStatus | NOT NULL, default `APPLIED`               | Moved on by the role's author in WBS 1.3 |
+| `created_at` / `updated_at` | TIMESTAMP         | NOT NULL                                  |                                          |
+
+`UNIQUE(casting_role_id, applicant_id)` is the real arbiter of "one application
+per member per role": two simultaneous attempts both pass the checks, and the
+loser surfaces as Prisma `P2002`, translated into a clean `409`, the same pattern
+as duplicate email. The unique index also serves per-role counts.
+`INDEX(applicant_id, created_at)` serves "my applications, newest first".
+
+The eligibility rules (role open, not your own, your profession) are checked
+inside the inserting transaction after `SELECT … FROM casting_roles WHERE id = $1
+FOR SHARE`. That lock makes a concurrent close (an `UPDATE` of the same row) wait
+for the insert to commit, so no application is ever written against a role that
+had already closed.
+
+Only drafts can be deleted, and a draft can never have applications, so the
+cascade from `casting_roles` only fires when a whole account is deleted.
+
+## Enums
+
+**Role:** `ACTOR`, `DIRECTOR`, `PRODUCER`, `CAMERA_OPERATOR`, `EDITOR`,
+`OTHER_CREW`, `ADMIN`. Only the first six are selectable at registration or as
+a casting role's `seeking_role`.
+
+**CastingRoleStatus:** `DRAFT` → `OPEN` → `CLOSED`. `CLOSED` is final.
+
+**ApplicationStatus:** `APPLIED`, `SHORTLISTED`, `SELECTED`, `REJECTED` — the four
+statuses agreed in Lab 2. Every application starts as `APPLIED`.
 
 ## Relationships
 
@@ -111,16 +180,23 @@ two writes, so two simultaneous uses of one token cannot both succeed.
 users 1───1 profiles 1───* profile_skills *───1 skills
   │              │
   │              └───* experiences
-  └───* refresh_tokens
+  ├───* refresh_tokens
+  ├───* casting_roles 1───* applications
+  └──────────────────────────* applications   (as applicant)
 ```
 
 ## Migrations
 
 ```
 prisma/migrations/
-├── <initial>/                       users table + Role enum
-└── 20260919094048_profiles_skills_experience_refresh_tokens/
+├── 20260901063302_init/                                     users table + Role enum
+├── 20260919094048_profiles_skills_experience_refresh_tokens/
+├── 20261005090213_casting_marketplace/                      casting_roles + CastingRoleStatus
+└── 20261005095956_applications/                             applications + ApplicationStatus
 ```
+
+The two casting migrations are purely additive — new enums, new tables and their
+indexes — so they apply cleanly to a populated database.
 
 The second migration adds `users.name` against a table that may already hold
 rows, so it runs in four steps: add the column nullable, backfill it from the

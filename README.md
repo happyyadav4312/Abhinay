@@ -5,10 +5,16 @@
 A professional networking platform for film-industry people — actors,
 directors, producers, camera operators, editors and other crew.
 
-This phase delivers **WBS 1.1 User Management & Profiles**: accounts and
-authentication (1.1.1) and professional profile management (1.1.2). Casting,
-applications, messaging and project features are deliberately not implemented;
-see [`docs/requirements.md`](docs/requirements.md#non-goals).
+Delivered so far:
+
+- **WBS 1.1 User Management & Profiles** — accounts and authentication (1.1.1)
+  and professional profile management (1.1.2).
+- **WBS 1.2 Casting Marketplace, 1.2.1–1.2.2** — producers and directors post
+  casting roles (1.2.1); every signed-in member browses and searches the open
+  ones and applies to those cast for their own profession (1.2.2).
+
+Shortlists, reviewing applicants, messaging and project features are not
+implemented yet; see [`docs/requirements.md`](docs/requirements.md#non-goals).
 
 ## Stack
 
@@ -126,7 +132,7 @@ There is no hardcoded admin. `npm run db:seed` creates one only when you supply
 both values, and refuses to run with `NODE_ENV=production`:
 
 ```bash
-SEED_ADMIN_EMAIL=you@example.test SEED_ADMIN_PASSWORD='at least 12 chars' npm run db:seed
+SEED_ADMIN_EMAIL=you@example.test SEED_ADMIN_PASSWORD='at least 6 chars' npm run db:seed
 ```
 
 ## Running locally
@@ -152,6 +158,19 @@ With both servers running:
    renders with no email and no phone.
 5. Register a second professional and open the same URL while logged in as
    them: same public view, and their own profile is untouched.
+6. Register a **Producer**, choose **Casting → Post a role**, set **Casting
+   for** to Actor, fill in the form and **Save as draft**. The draft's page says
+   only you can see it; **Publish role** lists it.
+7. Log in as any other member, open **Casting**, and search for a word from the
+   role's title: it is listed, and opening it shows who posted it. Visiting
+   `/casting/create` explains that only producers and directors can post.
+8. Register an **Actor**, open the role and **Apply for this role**, then
+   confirm. The page shows the application, and **My applications** lists it. A
+   member of any other profession sees why they cannot apply instead of a
+   button.
+9. Back as the producer, the role shows **1 application so far**. **Close
+   role**: it disappears from search but stays under **My postings → Closed**,
+   and the actor's application stays listed.
 
 ## Tests
 
@@ -215,25 +234,34 @@ Neither `db:migrate` nor `db:migrate:deploy` resets a database.
 Base URL `http://localhost:5000/api/v1`. Full contract:
 [`docs/api.md`](docs/api.md).
 
-| Method | Path                      | Access                                   |
-| ------ | ------------------------- | ---------------------------------------- |
-| GET    | `/health`                 | Public                                   |
-| POST   | `/auth/register`          | Public                                   |
-| POST   | `/auth/login`             | Public                                   |
-| POST   | `/auth/refresh`           | Refresh cookie + `X-Abhinay-Client: web` |
-| POST   | `/auth/logout`            | Refresh cookie + `X-Abhinay-Client: web` |
-| GET    | `/auth/me`                | Bearer                                   |
-| GET    | `/profile/me`             | Bearer                                   |
-| PUT    | `/profile/me`             | Bearer                                   |
-| GET    | `/profile/:id`            | Public                                   |
-| POST   | `/profile/skills`         | Bearer                                   |
-| DELETE | `/profile/skills/:id`     | Bearer                                   |
-| POST   | `/profile/experience`     | Bearer                                   |
-| PUT    | `/profile/experience/:id` | Bearer                                   |
-| DELETE | `/profile/experience/:id` | Bearer                                   |
-| POST   | `/profile/photo`          | Bearer, multipart field `photo`          |
-| DELETE | `/profile/photo`          | Bearer                                   |
-| GET    | `/admin/users`            | Bearer, `ADMIN` only                     |
+| Method | Path                        | Access                                                  |
+| ------ | --------------------------- | ------------------------------------------------------- |
+| GET    | `/health`                   | Public                                                  |
+| POST   | `/auth/register`            | Public                                                  |
+| POST   | `/auth/login`               | Public                                                  |
+| POST   | `/auth/refresh`             | Refresh cookie + `X-Abhinay-Client: web`                |
+| POST   | `/auth/logout`              | Refresh cookie + `X-Abhinay-Client: web`                |
+| GET    | `/auth/me`                  | Bearer                                                  |
+| GET    | `/profile/me`               | Bearer                                                  |
+| PUT    | `/profile/me`               | Bearer                                                  |
+| GET    | `/profile/:id`              | Public                                                  |
+| POST   | `/profile/skills`           | Bearer                                                  |
+| DELETE | `/profile/skills/:id`       | Bearer                                                  |
+| POST   | `/profile/experience`       | Bearer                                                  |
+| PUT    | `/profile/experience/:id`   | Bearer                                                  |
+| DELETE | `/profile/experience/:id`   | Bearer                                                  |
+| POST   | `/profile/photo`            | Bearer, multipart field `photo`                         |
+| DELETE | `/profile/photo`            | Bearer                                                  |
+| GET    | `/casting`                  | Bearer — open roles, search and filters                 |
+| POST   | `/casting`                  | Bearer, `PRODUCER` or `DIRECTOR`                        |
+| GET    | `/casting/mine`             | Bearer, `PRODUCER` or `DIRECTOR`                        |
+| GET    | `/casting/:id`              | Bearer — a draft only for its author                    |
+| PUT    | `/casting/:id`              | Bearer, author; not once closed                         |
+| PATCH  | `/casting/:id/status`       | Bearer, author — publish or close                       |
+| DELETE | `/casting/:id`              | Bearer, author; drafts only                             |
+| POST   | `/casting/:id/applications` | Bearer — matching profession, not the author, role open |
+| GET    | `/applications/mine`        | Bearer                                                  |
+| GET    | `/admin/users`              | Bearer, `ADMIN` only                                    |
 
 Example:
 
@@ -264,8 +292,22 @@ and [`postman/abhinay.local.postman_environment.json`](postman/abhinay.local.pos
 then set your own `email` and `password` in the environment. No tokens or
 credentials are bundled. The collection covers registration, login, refresh,
 current user, logout, invalid credentials, duplicate email, invalid tokens,
-profile and skill/experience/photo operations, and both the non-admin `403` and
-admin `200` cases.
+profile and skill/experience/photo operations, the full casting lifecycle
+including applying (its folder registers its own throwaway producer), and both
+the non-admin `403` and admin `200` cases.
+
+It can also run headless with newman, without adding it to the project:
+
+```bash
+npx newman run postman/abhinay.postman_collection.json \
+  -e postman/abhinay.local.postman_environment.json \
+  --env-var "email=you+postman@example.test" --env-var "password=at least 6 chars"
+```
+
+Use a new email for each run, because `Auth / Register` expects a `201`. Two
+requests need manual setup and fail headless by design: **Upload photo** (pick
+a file in Postman) and **List users — admin (200)** (paste an admin's token
+into `adminAccessToken`).
 
 ## Documentation
 
@@ -274,7 +316,7 @@ admin `200` cases.
 - [API reference](docs/api.md) · [conventions](docs/api/api-conventions.md)
 - [Database design](docs/database/database-design.md)
 - [Implementation decisions](docs/implementation-decisions.md)
-- [Week 1–5 status](docs/week-1-5-status.md)
+- [Week 1–5 status](docs/week-1-5-status.md) · [Week 6–9 status](docs/week-6-9-status.md)
 
 ## License
 

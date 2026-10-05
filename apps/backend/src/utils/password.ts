@@ -6,7 +6,11 @@ import { env } from '../config/env';
  * rather than silently ignoring the tail of a longer passphrase.
  */
 export const MAX_PASSWORD_BYTES = 72;
-export const MIN_PASSWORD_LENGTH = 12;
+/**
+ * Lowered from 12 at the client's request (Week 9). NIST SP 800-63B recommends
+ * at least 8; see docs/implementation-decisions.md before changing it again.
+ */
+export const MIN_PASSWORD_LENGTH = 6;
 
 /** Hash a plaintext password using the configured cost factor. */
 export async function hashPassword(password: string): Promise<string> {

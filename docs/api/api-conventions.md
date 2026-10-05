@@ -45,22 +45,22 @@ A `204` response has no body — do not attempt to parse one.
 
 ## HTTP Status Codes
 
-| Code | Meaning                | Usage                                                                          |
-| ---- | ---------------------- | ------------------------------------------------------------------------------ |
-| 200  | OK                     | Successful GET, PUT, idempotent POST                                           |
-| 201  | Created                | A resource was created                                                         |
-| 204  | No Content             | Successful DELETE; no body                                                     |
-| 400  | Bad Request            | Malformed before validation: bad JSON, missing multipart field                 |
-| 401  | Unauthorized           | Missing, invalid, expired or wrong-purpose token                               |
-| 403  | Forbidden              | Authenticated but denied: role policy, untrusted origin, missing client header |
-| 404  | Not Found              | Unknown route, or a resource that does not exist or is not the caller's        |
-| 409  | Conflict               | Duplicate email                                                                |
-| 413  | Payload Too Large      | JSON body over 32 KiB, image over 5 MiB or 6000 px                             |
-| 415  | Unsupported Media Type | Not a decodable JPEG, PNG or WebP                                              |
-| 422  | Unprocessable Entity   | Well-formed request that fails validation, or a bounded limit exceeded         |
-| 429  | Too Many Requests      | Auth rate limit exceeded                                                       |
-| 500  | Internal Server Error  | Unexpected fault; generic message only                                         |
-| 503  | Service Unavailable    | Database unreachable on `/health`                                              |
+| Code | Meaning                | Usage                                                                                                                                                                        |
+| ---- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 200  | OK                     | Successful GET, PUT, PATCH, idempotent POST                                                                                                                                  |
+| 201  | Created                | A resource was created                                                                                                                                                       |
+| 204  | No Content             | Successful DELETE; no body                                                                                                                                                   |
+| 400  | Bad Request            | Malformed before validation: bad JSON, missing multipart field                                                                                                               |
+| 401  | Unauthorized           | Missing, invalid, expired or wrong-purpose token                                                                                                                             |
+| 403  | Forbidden              | Authenticated but denied: role policy, untrusted origin, missing client header, not eligible to apply (wrong profession, own role)                                           |
+| 404  | Not Found              | Unknown route, or a resource that does not exist or is not the caller's — including another user's casting draft                                                             |
+| 409  | Conflict               | Duplicate email, or a request that clashes with a resource's current state (editing a closed casting role, an invalid status transition, applying twice or to a closed role) |
+| 413  | Payload Too Large      | JSON body over 32 KiB, image over 5 MiB or 6000 px                                                                                                                           |
+| 415  | Unsupported Media Type | Not a decodable JPEG, PNG or WebP                                                                                                                                            |
+| 422  | Unprocessable Entity   | Well-formed request that fails validation, or a bounded limit exceeded                                                                                                       |
+| 429  | Too Many Requests      | Auth rate limit exceeded                                                                                                                                                     |
+| 500  | Internal Server Error  | Unexpected fault; generic message only                                                                                                                                       |
+| 503  | Service Unavailable    | Database unreachable on `/health`                                                                                                                                            |
 
 ## Authentication
 
@@ -79,6 +79,8 @@ require the non-simple header `X-Abhinay-Client: web`.
 ## CORS and origin policy
 
 Credentialed CORS for exactly one origin (`FRONTEND_URL`) — never `*`.
+Allowed methods are `GET`, `POST`, `PUT`, `PATCH` and `DELETE`; a method missing
+from that list fails the browser's preflight before the request is sent.
 State-changing endpoints reject a present-but-untrusted `Origin`, including the
 literal `null`. A request with no `Origin` is a non-browser client and is
 allowed; it carries no ambient cookies.
@@ -117,3 +119,4 @@ passwords, authorization headers, cookies, raw tokens or secrets.
 | Prisma models | PascalCase      | `User`, `ProfileSkill`             |
 | Enums         | SCREAMING_SNAKE | `CAMERA_OPERATOR`, `ADMIN`         |
 | Error codes   | SCREAMING_SNAKE | `VALIDATION_FAILED`, `EMAIL_TAKEN` |
+| Status values | SCREAMING_SNAKE | `DRAFT`, `OPEN`, `CLOSED`          |

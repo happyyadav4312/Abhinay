@@ -11,8 +11,14 @@ export const ErrorCode = {
   FORBIDDEN: 'FORBIDDEN',
   FORBIDDEN_ORIGIN: 'FORBIDDEN_ORIGIN',
   MISSING_CLIENT_HEADER: 'MISSING_CLIENT_HEADER',
+  NOT_ELIGIBLE: 'NOT_ELIGIBLE',
   NOT_FOUND: 'NOT_FOUND',
   EMAIL_TAKEN: 'EMAIL_TAKEN',
+  INVALID_STATUS_TRANSITION: 'INVALID_STATUS_TRANSITION',
+  CASTING_ROLE_CLOSED: 'CASTING_ROLE_CLOSED',
+  CASTING_ROLE_NOT_DRAFT: 'CASTING_ROLE_NOT_DRAFT',
+  CASTING_ROLE_NOT_OPEN: 'CASTING_ROLE_NOT_OPEN',
+  ALREADY_APPLIED: 'ALREADY_APPLIED',
   PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
   UNSUPPORTED_MEDIA_TYPE: 'UNSUPPORTED_MEDIA_TYPE',
   TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
@@ -68,6 +74,9 @@ export const invalidCredentials = () =>
 export const forbidden = (message = 'Insufficient permissions') =>
   new AppError(403, ErrorCode.FORBIDDEN, message);
 
+/** Authenticated, but this particular action is not open to this caller. */
+export const notEligible = (message: string) => new AppError(403, ErrorCode.NOT_ELIGIBLE, message);
+
 export const notFound = (message = 'Resource not found') =>
   new AppError(404, ErrorCode.NOT_FOUND, message);
 
@@ -75,6 +84,9 @@ export const emailTaken = () =>
   new AppError(409, ErrorCode.EMAIL_TAKEN, 'An account with this email already exists', {
     email: ['An account with this email already exists'],
   });
+
+/** The request is valid but clashes with the resource's current state. */
+export const conflict = (code: ErrorCodeValue, message: string) => new AppError(409, code, message);
 
 export const payloadTooLarge = (message: string) =>
   new AppError(413, ErrorCode.PAYLOAD_TOO_LARGE, message);

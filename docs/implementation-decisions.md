@@ -199,6 +199,161 @@ inputs hold and converts them once, deliberately.
 - Token expiry is tested by signing tokens with a negative lifetime, not by
   sleeping.
 
+## Casting (WBS 1.2.1, 1.2.2.1)
+
+**Who posts.** `PRODUCER` and `DIRECTOR`, per Lab 2 FR-02, enforced with
+`requireRole` on every write and on `/casting/mine`. `ADMIN` is not a poster;
+moderation is WBS 1.6. The role check runs before the ownership check, so a
+non-poster always gets `403` and a poster touching someone else's role gets
+`404` — the same answer as for an id that does not exist.
+
+**Who reads.** Every signed-in user. Browsing requires a session (unlike the
+public profile page), as agreed when the increment was approved.
+
+**Lifecycle.** `DRAFT → OPEN → CLOSED`, moved only by
+`PATCH /casting/:id/status`. Create always makes a draft; the UI's "Publish
+role" is create followed by publish, and if the second call fails the draft's
+page says so instead of pretending nothing happened.
+
+| Choice                         | Rationale                                                                                                   |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `CLOSED` is final              | Reopening was not a requirement, and a final state keeps future applications unambiguous                    |
+| Only drafts can be deleted     | Nobody else has seen a draft; a published role is closed so any link to it still resolves                   |
+| A draft is a `404` to others   | Not `403`: probing ids must not reveal that a draft exists                                                  |
+| Same-status `PATCH` is a `200` | Idempotent, like re-adding a skill; a retry or a lost race is not an error                                  |
+| Other moves are `409`          | `INVALID_STATUS_TRANSITION`, `CASTING_ROLE_CLOSED`, `CASTING_ROLE_NOT_DRAFT` let the client say exactly why |
+
+Ownership and the status guard live in the conditional write
+(`updateMany`/`deleteMany` with `createdById` and `status` in the predicate),
+the same pattern as experiences and refresh rotation. Concurrent publishes
+therefore perform the transition once, and every caller sees the same
+`publishedAt`.
+
+**Fields.** Exactly what FR-02 lists — description, requirements, compensation,
+location — plus a title and `seekingRole`, the profession sought. `seekingRole`
+reuses the `Role` enum and the validator restricts it to the six public roles.
+Compensation and location are free text; nothing in the plan calls for
+structured currency or a deadline, so none was invented. A nullable link to a
+project can be added when WBS 1.5 introduces project pages.
+
+**Search.** A case-insensitive substring match (`ILIKE`) over title,
+description, requirements and location, plus exact `seekingRole` and substring
+`location` filters. Prisma does not escape `LIKE` wildcards in `contains` — the
+integration suite caught a search for "100%" also matching "1000" — so `%`, `_`
+and `\` are escaped before the query. A sequential scan is fine at this scale;
+`pg_trgm` is the upgrade path.
+
+**Projections.** Lists return a summary with a 200-character
+`descriptionPreview` (cut on a code-point boundary, so an emoji is never split);
+the detail adds the full text and `isOwner`. The poster appears as
+`{ profileId, name, role, photoUrl }`, never email, phone or user id.
+
+**Paths.** `/api/v1/casting`, the naming agreed for this increment, under the
+existing `v1` prefix. `PATCH` was added to the CORS method allowlist; without it
+the browser's preflight rejects status changes before they are sent.
+
+**Frontend.**
+
+- Filters live in the URL, so a search can be shared and restored by the back
+  button.
+- Loading is derived from a request key instead of a synchronous `setState`
+  in an effect, matching the existing pages.
+- New pages use the shadcn semantic tokens (`bg-primary`, `text-primary`). The
+  header and dashboard additions copy their neighbours' `brand-*` classes so
+  they stay consistent; since the theme completion both resolve to the same
+  primary.
+- Destructive actions (close, delete) ask for an inline confirmation and move
+  focus to it.
+
+## Applications (WBS 1.2.2.2)
+
+**Who may apply.** A member whose **current** profession — the role read from
+the database on every request — equals the role's `seekingRole`, and who is not
+the role's author. The client chose this rule in Week 9 over "any signed-in
+member". Consequences: a director can apply to a role casting for a director, a
+producer to one casting for a producer, and `ADMIN` never qualifies because
+`seekingRole` can never be `ADMIN`.
+
+| Situation                             | Answer                      | Why                                                     |
+| ------------------------------------- | --------------------------- | ------------------------------------------------------- |
+| Unknown role, or someone else's draft | `404 NOT_FOUND`             | Drafts stay invisible, exactly as on `GET /casting/:id` |
+| Own role                              | `403 NOT_ELIGIBLE`          | Policy, not state                                       |
+| Role not `OPEN`                       | `409 CASTING_ROLE_NOT_OPEN` | State: the same request would have worked earlier       |
+| Wrong profession                      | `403 NOT_ELIGIBLE`          | Policy                                                  |
+| Second application                    | `409 ALREADY_APPLIED`       | State, decided by the unique constraint                 |
+
+**Concurrency.** Two guarantees, two mechanisms. _One application per member
+per role_ is the unique pair `(casting_role_id, applicant_id)`; the loser of a
+race gets `P2002`, translated to `409` exactly like a duplicate email. _No
+application on a closed role_ is a `SELECT … FOR SHARE` of the role inside the
+inserting transaction: a concurrent close is an `UPDATE` of that row, so it
+waits until the application commits — or the apply sees `CLOSED` and refuses.
+This is the codebase's only raw query, and it is parameterised.
+
+**No body.** `POST /casting/:id/applications` takes an empty strict object.
+Who applies comes from the token; a cover note was not in the requirements, so
+none was invented. Adding one later is an additive nullable column.
+
+**No withdrawal.** The Lab 2 lifecycle has no withdrawn state, so an application
+is final. The UI says so before the member confirms.
+
+**What the author sees.** Only `applicationCount`, on their own role. Who
+applied is the applicant review of WBS 1.3.1, built with shortlists (1.2.3), so
+this increment exposes no applicant identity to anyone.
+
+**Statuses.** All four Lab 2 statuses exist in the enum now, so WBS 1.3 changes
+behaviour, not the schema. Only `APPLIED` is reachable in this increment.
+
+## Theme completion (Week 9)
+
+The in-progress shadcn theme (tweakcn tokens, Inter / Source Serif 4 / JetBrains
+Mono) had dropped the `brand-*` palette that 32 utilities in 12 existing files
+use, plus `.gradient-text`, `.animate-pulse-glow`, `--font-heading` and the
+`tw-animate-css` / `shadcn/tailwind.css` imports. At the client's direction the
+old brand colours were **moved onto the new theme** rather than restored:
+
+- `brand-*` is now a scale on the theme primary's hue (259.77 in oklch), with
+  lightness stepped like a Tailwind palette and chroma kept as muted as the
+  theme. `brand-600`, the colour of every primary call to action, is
+  `var(--primary)` itself, so those buttons always match the shadcn `<Button>`.
+- `.gradient-text` draws from the same scale; the status pulse stays green and
+  now stops for users who prefer reduced motion.
+- The two imports are back, so `select.tsx`'s `animate-in` and `data-open`
+  utilities resolve again.
+
+The theme's own `--font-sans: Inter, sans-serif` declarations were checked in a
+browser and left alone: `next/font`'s variable wins, and the self-hosted Inter
+is the face actually rendered.
+
+## Password policy change (Week 9)
+
+The minimum password length was lowered from 12 to **6 characters** at the
+client's request. The 72-byte maximum is unchanged (bcrypt's truncation
+point), and passwords are still never trimmed or case-folded. Existing accounts
+are unaffected: login only ever required a non-empty password.
+
+Trade-off, recorded deliberately: NIST SP 800-63B recommends at least 8
+characters. Bcrypt's cost and the per-IP throttle on `/auth/login` blunt online
+guessing, but short passwords remain weaker against an offline attack on a
+leaked hash. Raising the floor again is one constant on each side —
+`MIN_PASSWORD_LENGTH` in `apps/backend/src/utils/password.ts` and
+`LIMITS.PASSWORD_MIN` in `apps/frontend/src/lib/validation.ts` — plus the seed
+check in `apps/backend/prisma/seed.ts`.
+
+## Repository hygiene (Week 9)
+
+- `.env.example` and `.env.test.example` existed only in the documentation;
+  they are now committed, secret-free, and cover every variable `env.ts` reads.
+- The shadcn UI primitives (added at the end of Week 5) were never run through
+  Prettier, so `npm run format:check` and therefore `npm run verify` failed.
+  They are now formatted; behaviour is unchanged.
+- `next` moved from 16.3.2 to 16.3.8 (a critical advisory, same minor line),
+  with `eslint-config-next` kept in lockstep. Both stay pinned exactly.
+- The Postman test scripts declared a top-level `const data`, which collides
+  with the Postman sandbox's built-in `data` global, so Register, Login and
+  Refresh never stored a token. Renamed to `payload`. The collection has now
+  been run end to end with newman.
+
 ## Known gaps
 
 - Refresh-token rows are not garbage-collected; revoked and expired rows
@@ -209,3 +364,8 @@ inputs hold and converts them once, deliberately.
 - Profile photos are stored on the local filesystem. The storage interface is
   the seam for a cloud adapter; integrating one is a later phase.
 - Role is fixed at registration. No endpoint changes it, by design.
+- "Concurrent use of one refresh token yields at most one success" is
+  timing-dependent: a request that reads the token just after another request's
+  rotation commits qualifies for the 10-second interrupted-rotation recovery and
+  also succeeds. The integration test for it fails intermittently (once in nine
+  runs on 2026-10-05); see `week-6-9-status.md`.

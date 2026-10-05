@@ -1,6 +1,7 @@
 # System Architecture
 
-Scope: WBS 1.1 — accounts, authentication and professional profiles.
+Scope: WBS 1.1 — accounts, authentication and professional profiles — and
+WBS 1.2.1–1.2.2 — casting role posting, browse, search and apply.
 
 ## Shape of the system
 
@@ -34,6 +35,8 @@ Scope: WBS 1.1 — accounts, authentication and professional profiles.
      │ users · profiles    │        │ STORAGE_ROOT/          │
      │ skills · experiences│        │   profile-photos/      │
      │ refresh_tokens      │        │ (ProfilePhotoStorage)  │
+     │ casting_roles       │        │                        │
+     │ applications        │        │                        │
      └─────────────────────┘        └────────────────────────┘
 ```
 
@@ -129,12 +132,23 @@ change takes effect on the next request instead of the next login.
 `GET /admin/users` is the demonstration endpoint: read-only, paginated, safe
 projection, `ADMIN` only.
 
+Casting is the first business use of role policy: `requireRole(PRODUCER,
+DIRECTOR)` guards every casting write and `/casting/mine`, while reads need only
+`authenticate`. Ownership is a separate, later check inside the service's
+conditional writes, so a non-poster gets `403` and another poster gets `404`.
+
+Applying is the one rule that depends on the resource, not just the caller: the
+applicant's current role must equal the casting role's `seekingRole`. It cannot
+be a route-level `requireRole`, so the service checks it inside the inserting
+transaction, under a row lock on the casting role.
+
 ## Profile and data relationships
 
 ```
 User 1───1 Profile ──* ProfileSkill *── Skill        (shared vocabulary)
               └──────* Experience                     (calendar dates)
 User ────────* RefreshToken                           (digest only)
+User ────────* CastingRole ──* Application *── User  (one per member per role)
 ```
 
 `User.name` is the single authoritative display name. `Profile` carries bio,

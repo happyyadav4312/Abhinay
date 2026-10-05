@@ -3,5 +3,12 @@
  * coordination and error shaping. Re-exported here so feature code can import
  * from a single service surface.
  */
-export { authApi, healthApi, profileApi, ApiError } from '@/lib/api';
-export type { FieldErrors } from '@/lib/api';
+export { applicationsApi, authApi, castingApi, healthApi, profileApi, ApiError } from '@/lib/api';
+export type {
+  ApplicationPage,
+  ApplicationsMineParams,
+  CastingListParams,
+  CastingMineParams,
+  CastingRolePage,
+  FieldErrors,
+} from '@/lib/api';

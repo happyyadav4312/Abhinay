@@ -14,7 +14,7 @@ export const VALID_PASSWORD = 'correct horse battery staple';
  */
 export async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "refresh_tokens", "profile_skills", "experiences", "profiles", "skills", "users" RESTART IDENTITY CASCADE'
+    'TRUNCATE TABLE "applications", "casting_roles", "refresh_tokens", "profile_skills", "experiences", "profiles", "skills", "users" RESTART IDENTITY CASCADE'
   );
 }
 
@@ -88,4 +88,63 @@ export async function makeAdmin(userId: string): Promise<void> {
 
 export function bearer(token: string): { Authorization: string } {
   return { Authorization: `Bearer ${token}` };
+}
+
+/** A complete, valid casting role body. Spread and override per test. */
+export const CASTING_ROLE_INPUT = {
+  title: 'Lead — Meera, investigative journalist',
+  description:
+    'Meera uncovers a coastal land scam while her newspaper is being sold. Feature film, 40-day schedule.',
+  requirements: 'Female, 25–32. Fluent in Malayalam and English. Comfortable with night shoots.',
+  compensation: '₹15,000 per shooting day',
+  location: 'Kochi, Kerala',
+  seekingRole: Role.ACTOR as Role,
+};
+
+export type CastingRoleInputBody = typeof CASTING_ROLE_INPUT;
+
+/** The fields of a casting role response the tests read. */
+export interface CastingRoleBody {
+  id: string;
+  title: string;
+  status: 'DRAFT' | 'OPEN' | 'CLOSED';
+  publishedAt: string | null;
+  closedAt: string | null;
+  updatedAt: string;
+  isOwner: boolean;
+  [key: string]: unknown;
+}
+
+/** Create a casting role through the real endpoint, optionally publishing it. */
+export async function createCastingRole(
+  app: Express,
+  accessToken: string,
+  overrides: Partial<CastingRoleInputBody> = {},
+  options: { publish?: boolean } = {}
+): Promise<CastingRoleBody> {
+  const created = await request(app)
+    .post('/api/v1/casting')
+    .set(bearer(accessToken))
+    .send({ ...CASTING_ROLE_INPUT, ...overrides });
+  if (created.status !== 201) {
+    throw new Error(`createCastingRole failed: ${created.status} ${JSON.stringify(created.body)}`);
+  }
+
+  if (!options.publish) return created.body.data.castingRole as CastingRoleBody;
+
+  const published = await request(app)
+    .patch(`/api/v1/casting/${created.body.data.castingRole.id}/status`)
+    .set(bearer(accessToken))
+    .send({ status: 'OPEN' });
+  if (published.status !== 200) {
+    throw new Error(`publish failed: ${published.status} ${JSON.stringify(published.body)}`);
+  }
+  return published.body.data.castingRole as CastingRoleBody;
+}
+
+/** POST /casting/:id/applications as the holder of `accessToken`. */
+export function applyTo(app: Express, accessToken: string, castingRoleId: string) {
+  return request(app)
+    .post(`/api/v1/casting/${castingRoleId}/applications`)
+    .set(bearer(accessToken));
 }

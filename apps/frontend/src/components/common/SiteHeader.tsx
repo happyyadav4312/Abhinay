@@ -41,7 +41,8 @@ export function SiteHeader() {
           Abhinay
         </Link>
 
-        <div className="ml-auto flex items-center gap-1">
+        {/* Wraps on narrow screens rather than overflowing the viewport. */}
+        <div className="ml-auto flex flex-wrap items-center gap-1">
           {isInitializing ? null : isAuthenticated && user ? (
             <>
               <span className="mr-2 hidden text-sm text-zinc-400 sm:inline">
@@ -52,6 +53,12 @@ export function SiteHeader() {
                 className="rounded-md px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
               >
                 Dashboard
+              </Link>
+              <Link
+                href="/casting"
+                className="rounded-md px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+              >
+                Casting
               </Link>
               <Link
                 href="/profile"

@@ -1,6 +1,7 @@
 // Abhinay — Prisma schema
-// Scope: WBS 1.1 User Management & Profiles (1.1.1 auth, 1.1.2 profiles).
-// Casting, applications, messaging and project tables are deliberately out of scope.
+// Scope: WBS 1.1 User Management & Profiles (1.1.1 auth, 1.1.2 profiles) and
+// WBS 1.2 Casting Marketplace (1.2.1 role posting, 1.2.2 discovery & applying).
+// Shortlists, messaging and project tables arrive with their own work packages.
 //
 // Conventions (established in the initial migration and kept here):
 //   - Model names PascalCase, table names snake_case plural via @@map.
@@ -42,6 +43,8 @@ model User {
 
   profile       Profile?
   refreshTokens RefreshToken[]
+  castingRoles  CastingRole[]
+  applications  Application[]
 
   @@map("users")
 }
@@ -135,4 +138,74 @@ model RefreshToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+// ── Casting Role Status ────────────────────────────────
+// DRAFT → OPEN (publish) → CLOSED. Only OPEN roles are discoverable. A CLOSED
+// role is final, and only a DRAFT (never seen by anyone else) may be deleted.
+enum CastingRoleStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+// ── CastingRole ────────────────────────────────────────
+// A casting call posted by a producer or director (WBS 1.2.1).
+// `seekingRole` is the profession being sought; the validator restricts it to
+// the six public roles, so ADMIN can never be a target.
+// Ownership is enforced inside every mutation predicate (`createdById`), the
+// same pattern the profile service uses for experience entries.
+model CastingRole {
+  id           String            @id @default(uuid())
+  createdById  String            @map("created_by_id")
+  title        String
+  description  String
+  requirements String
+  compensation String
+  location     String
+  seekingRole  Role              @map("seeking_role")
+  status       CastingRoleStatus @default(DRAFT)
+  publishedAt  DateTime?         @map("published_at")
+  closedAt     DateTime?         @map("closed_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  createdBy    User          @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@index([createdById])
+  @@index([status, publishedAt])
+  @@index([status, seekingRole])
+  @@map("casting_roles")
+}
+
+// ── Application Status ─────────────────────────────────
+// The four statuses agreed in Lab 2. Every application starts as APPLIED;
+// moving it on (shortlist, select, reject) is WBS 1.3.
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  SELECTED
+  REJECTED
+}
+
+// ── Application ────────────────────────────────────────
+// One member's application to one OPEN casting role (WBS 1.2.2.2). Only members
+// whose profession matches the role's `seekingRole` may apply, never its author.
+// The unique pair makes a second application impossible even under concurrent
+// requests; the service locks the role row so none lands on a role closed first.
+model Application {
+  id            String            @id @default(uuid())
+  castingRoleId String            @map("casting_role_id")
+  applicantId   String            @map("applicant_id")
+  status        ApplicationStatus @default(APPLIED)
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  castingRole CastingRole @relation(fields: [castingRoleId], references: [id], onDelete: Cascade)
+  applicant   User        @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@unique([castingRoleId, applicantId])
+  @@index([applicantId, createdAt])
+  @@map("applications")
 }

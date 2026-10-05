@@ -10,7 +10,7 @@ import { PUBLIC_ROLES } from '@/types';
 export const LIMITS = {
   NAME_MIN: 2,
   NAME_MAX: 80,
-  PASSWORD_MIN: 12,
+  PASSWORD_MIN: 6,
   PASSWORD_MAX_BYTES: 72,
   BIO_MAX: 1000,
   LOCATION_MAX: 120,
@@ -20,6 +20,13 @@ export const LIMITS = {
   EXPERIENCE_TITLE_MAX: 120,
   EXPERIENCE_ORGANIZATION_MAX: 120,
   EXPERIENCE_DESCRIPTION_MAX: 2000,
+  CASTING_TITLE_MIN: 3,
+  CASTING_TITLE_MAX: 120,
+  CASTING_DESCRIPTION_MAX: 5000,
+  CASTING_REQUIREMENTS_MAX: 3000,
+  CASTING_COMPENSATION_MAX: 200,
+  CASTING_LOCATION_MAX: 120,
+  CASTING_SEARCH_MAX: 100,
 } as const;
 
 const email = z
@@ -117,8 +124,49 @@ export const experienceFormSchema = z
     message: 'End date cannot be before the start date',
   });
 
+const requiredText = (label: string, max: number, min = 1) =>
+  z
+    .string()
+    .trim()
+    .min(min, min === 1 ? `${label} is required` : `${label} must be at least ${min} characters`)
+    .max(max, `${label} must not exceed ${max} characters`);
+
+const publicRole = (message: string) =>
+  z.enum(PUBLIC_ROLES as unknown as [string, ...string[]], { errorMap: () => ({ message }) });
+
+/** Mirrors `castingRoleSchema` in apps/backend/src/validators/casting.validator.ts. */
+export const castingRoleFormSchema = z.object({
+  title: requiredText('Title', LIMITS.CASTING_TITLE_MAX, LIMITS.CASTING_TITLE_MIN),
+  seekingRole: publicRole('Choose the role you are casting for'),
+  location: requiredText('Location', LIMITS.CASTING_LOCATION_MAX),
+  compensation: requiredText('Compensation', LIMITS.CASTING_COMPENSATION_MAX),
+  description: requiredText('Description', LIMITS.CASTING_DESCRIPTION_MAX),
+  requirements: requiredText('Requirements', LIMITS.CASTING_REQUIREMENTS_MAX),
+});
+
+/** The browse filter bar. An empty value means "no filter". */
+export const castingSearchFormSchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .max(
+      LIMITS.CASTING_SEARCH_MAX,
+      `Search must not exceed ${LIMITS.CASTING_SEARCH_MAX} characters`
+    ),
+  seekingRole: z.union([publicRole('Choose a role'), z.literal('')]),
+  location: z
+    .string()
+    .trim()
+    .max(
+      LIMITS.CASTING_LOCATION_MAX,
+      `Location must not exceed ${LIMITS.CASTING_LOCATION_MAX} characters`
+    ),
+});
+
 export type RegisterFormValues = z.input<typeof registerFormSchema>;
 export type LoginFormValues = z.input<typeof loginFormSchema>;
 export type ProfileFormValues = z.input<typeof profileFormSchema>;
 export type SkillFormValues = z.input<typeof skillFormSchema>;
 export type ExperienceFormValues = z.input<typeof experienceFormSchema>;
+export type CastingRoleFormValues = z.input<typeof castingRoleFormSchema>;
+export type CastingSearchFormValues = z.input<typeof castingSearchFormSchema>;

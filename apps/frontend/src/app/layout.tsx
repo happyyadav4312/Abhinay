@@ -2,10 +2,23 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SiteHeader } from '@/components/common';
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
+import { Inter, Source_Serif_4, JetBrains_Mono } from 'next/font/google';
+import { cn } from '@/lib/utils';
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const fontSans = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+});
+
+const fontSerif = Source_Serif_4({
+  subsets: ['latin'],
+  variable: '--font-serif',
+});
+
+const fontMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+});
 
 export const metadata: Metadata = {
   title: 'Abhinay — Film Production Networking & Casting',
@@ -14,15 +27,13 @@ export const metadata: Metadata = {
   keywords: ['film', 'casting', 'networking', 'production', 'actors', 'directors'],
 };
 
-/**
- * System font stack rather than a downloaded webfont: `next/font/google` fetches
- * the font at build time, which would make an offline or firewalled build fail
- * for no visual benefit here.
- */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={cn("dark", "font-sans", geist.variable)}>
-      <body className="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased">
+    <html
+      lang="en"
+      className={cn('dark', fontSans.variable, fontSerif.variable, fontMono.variable)}
+    >
+      <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         <AuthProvider>
           <SiteHeader />
           <main className="mx-auto w-full max-w-5xl px-4 py-8">{children}</main>
