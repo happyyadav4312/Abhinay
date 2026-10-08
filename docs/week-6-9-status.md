@@ -107,8 +107,8 @@ concurrently` failed once in nine integration runs on 2026-10-05 and passed on
 - **Stale nested lockfiles.** `apps/backend/package-lock.json` and
   `apps/frontend/package-lock.json` predate the npm workspace and are no longer
   updated; the root `package-lock.json` is authoritative.
-- **Deferred from WBS 1.1:** resume/CV and reel upload; see
-  [`requirements.md`](requirements.md#deferred-from-wbs-11).
+- **Deferred from WBS 1.1:** resume/CV and reel upload — built in Week 10 on
+  Cloudinary; see [`week-10-status.md`](week-10-status.md).
 - **Schedule.** Casting sits on the Lab 7 critical path and started 15 working
   days after its planned start, so the remaining critical activities need
   compressing to hold the 16-11-2026 delivery date.

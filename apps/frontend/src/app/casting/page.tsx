@@ -11,7 +11,15 @@ import { castingSearchFormSchema, LIMITS, type CastingSearchFormValues } from '@
 import { ErrorState, LoadingState, RequireAuth } from '@/components/common';
 import { CastingRoleCard, Pager } from '@/components/casting';
 import { Button, buttonVariants, EmptyState, Field, Input, NativeSelect } from '@/components/ui';
-import { canPostCasting, PUBLIC_ROLES, ROLE_LABELS, type PublicRole } from '@/types';
+import {
+  canPostCasting,
+  CASTING_SORT_LABELS,
+  CASTING_SORTS,
+  PUBLIC_ROLES,
+  ROLE_LABELS,
+  type CastingSort,
+  type PublicRole,
+} from '@/types';
 
 type LoadResult = { key: string } & (
   { ok: true; page: CastingRolePage } | { ok: false; message: string }
@@ -24,6 +32,8 @@ type LoadResult = { key: string } & (
  */
 function filtersFrom(search: { get(name: string): string | null }): CastingListParams {
   const seekingRole = search.get('seekingRole') ?? '';
+  const sort = search.get('sort') ?? '';
+  const deadlineBefore = search.get('deadlineBefore') ?? '';
   const page = Number(search.get('page'));
 
   return {
@@ -32,6 +42,12 @@ function filtersFrom(search: { get(name: string): string | null }): CastingListP
       ? (seekingRole as PublicRole)
       : undefined,
     location: search.get('location')?.trim().slice(0, LIMITS.CASTING_LOCATION_MAX) || undefined,
+    deadlineBefore: /^\d{4}-\d{2}-\d{2}$/.test(deadlineBefore) ? deadlineBefore : undefined,
+    // `newest` is the API's default, so it is left out of the URL.
+    sort:
+      (CASTING_SORTS as readonly string[]).includes(sort) && sort !== 'newest'
+        ? (sort as CastingSort)
+        : undefined,
     page: Number.isInteger(page) && page > 1 ? page : undefined,
   };
 }
@@ -41,6 +57,8 @@ function castingHref(filters: CastingListParams): string {
   if (filters.q) search.set('q', filters.q);
   if (filters.seekingRole) search.set('seekingRole', filters.seekingRole);
   if (filters.location) search.set('location', filters.location);
+  if (filters.deadlineBefore) search.set('deadlineBefore', filters.deadlineBefore);
+  if (filters.sort && filters.sort !== 'newest') search.set('sort', filters.sort);
   if (filters.page && filters.page > 1) search.set('page', String(filters.page));
   const query = search.toString();
   return query ? `/casting?${query}` : '/casting';
@@ -63,6 +81,8 @@ function SearchBar({
       q: initial.q ?? '',
       seekingRole: initial.seekingRole ?? '',
       location: initial.location ?? '',
+      deadlineBefore: initial.deadlineBefore ?? '',
+      sort: initial.sort ?? 'newest',
     },
   });
 
@@ -76,9 +96,11 @@ function SearchBar({
           q: values.q || undefined,
           seekingRole: (values.seekingRole || undefined) as PublicRole | undefined,
           location: values.location || undefined,
+          deadlineBefore: values.deadlineBefore || undefined,
+          sort: values.sort,
         })
       )}
-      className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-start"
+      className="grid gap-3 sm:grid-cols-3 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] sm:items-start"
     >
       <Field label="Search" htmlFor="casting-search" error={errors.q?.message}>
         <Input
@@ -107,6 +129,27 @@ function SearchBar({
           aria-invalid={Boolean(errors.location)}
           {...register('location')}
         />
+      </Field>
+      <Field
+        label="Closing by"
+        htmlFor="casting-filter-deadline"
+        error={errors.deadlineBefore?.message}
+      >
+        <Input
+          id="casting-filter-deadline"
+          type="date"
+          aria-invalid={Boolean(errors.deadlineBefore)}
+          {...register('deadlineBefore')}
+        />
+      </Field>
+      <Field label="Sort" htmlFor="casting-sort">
+        <NativeSelect id="casting-sort" className="h-8 py-0" {...register('sort')}>
+          {CASTING_SORTS.map((sort) => (
+            <option key={sort} value={sort}>
+              {CASTING_SORT_LABELS[sort]}
+            </option>
+          ))}
+        </NativeSelect>
       </Field>
       {/* Offset by the label row (text-sm, leading-none) plus the field gap. */}
       <Button type="submit" className="sm:mt-5">
@@ -150,7 +193,9 @@ function CastingBrowse() {
   }, [queryKey, reloadToken]);
 
   const filters = filtersFrom(searchParams);
-  const hasFilters = Boolean(filters.q || filters.seekingRole || filters.location);
+  const hasFilters = Boolean(
+    filters.q || filters.seekingRole || filters.location || filters.deadlineBefore
+  );
   const isPoster = canPostCasting(user?.role);
   const isLoading = result === null || result.key !== `${queryKey}|${reloadToken}`;
 

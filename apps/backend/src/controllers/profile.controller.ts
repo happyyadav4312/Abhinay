@@ -6,10 +6,13 @@ import { parseOrThrow, requireUuidParam } from '../validators/common';
 import {
   addSkillSchema,
   createExperienceSchema,
+  portfolioUploadFieldsSchema,
   updateExperienceSchema,
   updateProfileSchema,
 } from '../validators/profile.validator';
 import * as profileService from '../services/profile.service';
+import * as mediaService from '../services/profile-media.service';
+import { TempUpload } from '../services/profile-media.service';
 
 function currentUserId(req: Request): string {
   return (req as AuthenticatedRequest).user.id;
@@ -78,20 +81,59 @@ export async function deleteExperienceController(req: Request, res: Response): P
   sendNoContent(res);
 }
 
+/** The temporary file multer wrote, or a 400 naming the field the client should have sent. */
+function requireUpload(req: Request, field: string, hint: string): TempUpload {
+  if (!req.file?.path) {
+    throw badRequest(`A multipart file field named "${field}" is required`, { [field]: [hint] });
+  }
+  return { path: req.file.path, originalName: req.file.originalname };
+}
+
 /** POST /api/v1/profile/photo — multipart, field name `photo`. */
 export async function uploadPhotoController(req: Request, res: Response): Promise<void> {
-  if (!req.file?.buffer) {
-    throw badRequest('A multipart file field named "photo" is required', {
-      photo: ['Choose a JPEG, PNG or WebP image'],
-    });
-  }
-
-  const profile = await profileService.setProfilePhoto(currentUserId(req), req.file.buffer);
+  const upload = requireUpload(req, 'photo', 'Choose a JPEG, PNG or WebP image');
+  const profile = await mediaService.setProfilePhoto(currentUserId(req), upload);
   sendSuccess(res, { profile }, 'Profile photo updated');
 }
 
 /** DELETE /api/v1/profile/photo */
 export async function removePhotoController(req: Request, res: Response): Promise<void> {
-  const profile = await profileService.removeProfilePhoto(currentUserId(req));
+  const profile = await mediaService.removeProfilePhoto(currentUserId(req));
   sendSuccess(res, { profile }, 'Profile photo removed');
+}
+
+/** POST /api/v1/profile/resume — multipart, field name `resume` (PDF). */
+export async function uploadResumeController(req: Request, res: Response): Promise<void> {
+  const upload = requireUpload(req, 'resume', 'Choose a PDF file');
+  const profile = await mediaService.setResume(currentUserId(req), upload);
+  sendSuccess(res, { profile }, 'CV uploaded');
+}
+
+/** DELETE /api/v1/profile/resume */
+export async function removeResumeController(req: Request, res: Response): Promise<void> {
+  const profile = await mediaService.removeResume(currentUserId(req));
+  sendSuccess(res, { profile }, 'CV removed');
+}
+
+/** POST /api/v1/profile/portfolio/photos — multipart, `photo` plus optional `title`. */
+export async function addPortfolioPhotoController(req: Request, res: Response): Promise<void> {
+  const upload = requireUpload(req, 'photo', 'Choose a JPEG, PNG or WebP image');
+  const { title } = parseOrThrow(portfolioUploadFieldsSchema, { ...req.body });
+  const item = await mediaService.addPortfolioPhoto(currentUserId(req), upload, title);
+  sendSuccess(res, { item }, 'Photo added to portfolio', 201);
+}
+
+/** POST /api/v1/profile/portfolio/videos — multipart, `video` plus optional `title`. */
+export async function addReelController(req: Request, res: Response): Promise<void> {
+  const upload = requireUpload(req, 'video', 'Choose an MP4, MOV or WebM video');
+  const { title } = parseOrThrow(portfolioUploadFieldsSchema, { ...req.body });
+  const item = await mediaService.addReel(currentUserId(req), upload, title);
+  sendSuccess(res, { item }, 'Reel added to portfolio', 201);
+}
+
+/** DELETE /api/v1/profile/portfolio/:id */
+export async function deletePortfolioItemController(req: Request, res: Response): Promise<void> {
+  const id = requireUuidParam(req.params.id, 'Portfolio item');
+  await mediaService.deletePortfolioItem(currentUserId(req), id);
+  sendNoContent(res);
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   blankToUndefined,
+  calendarDateSchema,
   LIMITS,
   pageQuerySchema,
   pageSizeQuerySchema,
@@ -21,6 +22,16 @@ const seekingRoleSchema = z.enum(PUBLIC_ROLES, {
 });
 
 /**
+ * The last day applications are accepted, as `YYYY-MM-DD`. Optional: absent,
+ * null or blank all mean "no deadline". Whether the date is still in the future
+ * depends on today's date and on the stored value, so the service checks that.
+ */
+const applicationDeadlineSchema = z.preprocess(
+  (value) => (value === undefined || value === null || value === '' ? null : value),
+  z.union([z.null(), calendarDateSchema])
+);
+
+/**
  * POST /casting and PUT /casting/:id — the complete editable representation.
  *
  * `.strict()` turns `status`, `createdById`, `publishedAt` and friends into a
@@ -35,6 +46,7 @@ export const castingRoleSchema = z
     compensation: requiredText('Compensation', LIMITS.CASTING_COMPENSATION_MAX),
     location: requiredText('Location', LIMITS.CASTING_LOCATION_MAX),
     seekingRole: seekingRoleSchema,
+    applicationDeadline: applicationDeadlineSchema,
   })
   .strict();
 
@@ -60,12 +72,25 @@ const optionalQueryText = (label: string, max: number) =>
       .optional()
   );
 
+/** Browse orderings. `deadline` puts the soonest deadline first and roles without one last. */
+export const CASTING_SORTS = ['newest', 'oldest', 'deadline'] as const;
+
 /** GET /casting — browse open roles. Unknown query keys are rejected. */
 export const listCastingQuerySchema = z
   .object({
     q: optionalQueryText('Search', LIMITS.CASTING_SEARCH_MAX),
     seekingRole: z.preprocess(blankToUndefined, seekingRoleSchema.optional()),
     location: optionalQueryText('Location', LIMITS.CASTING_LOCATION_MAX),
+    /** Only roles whose deadline falls on or before this date. */
+    deadlineBefore: z.preprocess(blankToUndefined, calendarDateSchema.optional()),
+    sort: z.preprocess(
+      blankToUndefined,
+      z
+        .enum(CASTING_SORTS, {
+          errorMap: () => ({ message: `Sort must be one of: ${CASTING_SORTS.join(', ')}` }),
+        })
+        .default('newest')
+    ),
     page: pageQuerySchema,
     pageSize: pageSizeQuerySchema,
   })
@@ -90,4 +115,5 @@ export const listMyCastingQuerySchema = z
 export type CastingRoleInput = z.infer<typeof castingRoleSchema>;
 export type CastingStatusTarget = z.infer<typeof castingStatusSchema>['status'];
 export type ListCastingQuery = z.infer<typeof listCastingQuerySchema>;
+export type CastingSort = (typeof CASTING_SORTS)[number];
 export type ListMyCastingQuery = z.infer<typeof listMyCastingQuerySchema>;

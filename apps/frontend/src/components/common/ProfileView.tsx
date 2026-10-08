@@ -1,6 +1,14 @@
 import { Avatar } from './Avatar';
+import { PortfolioMedia } from './PortfolioMedia';
 import { Card, EmptyState } from '@/components/ui';
-import { ROLE_LABELS, type Experience, type PublicProfile, type Skill } from '@/types';
+import { formatBytes } from '@/lib/utils';
+import {
+  ROLE_LABELS,
+  type Experience,
+  type PortfolioItem,
+  type PublicProfile,
+  type Skill,
+} from '@/types';
 
 function formatMonth(value: string): string {
   return new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric' }).format(
@@ -93,6 +101,62 @@ export function ProfileView({
         </h2>
         <ExperienceList experiences={profile.experiences} />
       </Card>
+
+      <Card>
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
+          Portfolio
+        </h2>
+        <PortfolioList items={profile.portfolio} />
+      </Card>
+
+      <Card>
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">CV</h2>
+        {profile.resume ? (
+          <p className="text-sm text-zinc-200">
+            <a
+              href={profile.resume.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-4"
+            >
+              {profile.resume.fileName}
+            </a>{' '}
+            <span className="text-zinc-500">(PDF, {formatBytes(profile.resume.bytes)})</span>
+          </p>
+        ) : (
+          <EmptyState>No CV uploaded yet.</EmptyState>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+export function PortfolioList({ items }: { items: PortfolioItem[] }) {
+  if (items.length === 0) return <EmptyState>No portfolio photos or reels yet.</EmptyState>;
+
+  const photos = items.filter((item) => item.kind === 'PHOTO');
+  const videos = items.filter((item) => item.kind === 'VIDEO');
+
+  return (
+    <div className="flex flex-col gap-5">
+      {videos.length > 0 ? (
+        <ul aria-label="Show reels" className="grid gap-3 sm:grid-cols-2">
+          {videos.map((item) => (
+            <li key={item.id}>
+              <PortfolioMedia item={item} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {photos.length > 0 ? (
+        <ul aria-label="Portfolio photos" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {photos.map((item) => (
+            <li key={item.id}>
+              <PortfolioMedia item={item} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

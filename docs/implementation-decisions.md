@@ -140,25 +140,22 @@ after a save.
 
 ## Uploads and storage
 
+_Weeks 1–5 kept profile photos on the local filesystem. Week 10 moved every
+upload to Cloudinary; see [Media storage on Cloudinary](#media-storage-on-cloudinary-week-10).
+What still holds from the original design:_
+
 - `POST /profile/photo`, multipart field `photo`; `DELETE /profile/photo` backs
   the remove control.
-- Policy: one JPEG/PNG/WebP file, ≤ 5 MiB, ≤ 6000 px per side. Files are
-  buffered in memory and decoded by `sharp`; the extension and client MIME type
-  are only a cheap early reject.
+- Policy: one JPEG/PNG/WebP file, ≤ 5 MiB, ≤ 6000 px per side, decoded by
+  `sharp`; the extension and client MIME type are only a cheap early reject.
 - Accepted images are re-encoded to a 512×512 WebP. Re-encoding normalises the
   format, strips EXIF, and means nothing the client sent is served back
   verbatim. SVG, renamed executables and truncated files fail to decode and are
   rejected with `415`.
-- `ProfilePhotoStorage` is a three-method interface with a filesystem
-  implementation. A cloud adapter would implement the same interface; no cloud
-  provider is integrated in this phase.
-- Keys are generated UUID filenames, never derived from a client filename, and
-  every path is re-validated to be inside the storage root before any
+- Keys are generated UUIDs, never derived from a client filename. The local
+  driver re-validates every path to be inside its directory before any
   filesystem call — including on delete.
-- Only the processed-photo directory is served, at `/media/profile-photos`,
-  from the Express origin. Absolute URLs are built from `PUBLIC_SERVER_URL`,
-  never from the request `Host` header. Originals are never written to disk.
-- Write order on replacement: validate → write new file → update row → delete
+- Write order on replacement: validate → store new file → update row → delete
   the superseded file. A failed database write removes the new file and leaves
   the previous photo reference intact.
 - The avatar fallback is locally rendered initials, with no third-party service.
@@ -232,8 +229,9 @@ therefore perform the transition once, and every caller sees the same
 **Fields.** Exactly what FR-02 lists — description, requirements, compensation,
 location — plus a title and `seekingRole`, the profession sought. `seekingRole`
 reuses the `Role` enum and the validator restricts it to the six public roles.
-Compensation and location are free text; nothing in the plan calls for
-structured currency or a deadline, so none was invented. A nullable link to a
+Compensation and location are free text. An optional application deadline was
+added in Week 10 at the client's request — see
+[Application deadlines](#application-deadlines-week-10). A nullable link to a
 project can be added when WBS 1.5 introduces project pages.
 
 **Search.** A case-insensitive substring match (`ILIKE`) over title,
@@ -297,12 +295,127 @@ none was invented. Adding one later is an additive nullable column.
 **No withdrawal.** The Lab 2 lifecycle has no withdrawn state, so an application
 is final. The UI says so before the member confirms.
 
-**What the author sees.** Only `applicationCount`, on their own role. Who
-applied is the applicant review of WBS 1.3.1, built with shortlists (1.2.3), so
-this increment exposes no applicant identity to anyone.
+**What the author sees.** `applicationCount` on the role page; since Week 10,
+who applied on the applicants page, built with shortlists (see below).
 
 **Statuses.** All four Lab 2 statuses exist in the enum now, so WBS 1.3 changes
 behaviour, not the schema. Only `APPLIED` is reachable in this increment.
+
+## Application deadlines (Week 10)
+
+**Shape.** `casting_roles.application_deadline`, a nullable PostgreSQL `date`:
+the last calendar day on which applications are accepted. A date rather than a
+timestamp because posters think in days ("apply by 31 October"), and a date
+cannot drift with the viewer's time zone. Optional, because Lab 2 does not
+require one and "open until filled" is a real casting practice.
+
+**Which "today".** One platform zone, `APP_TIME_ZONE` (default
+`Asia/Kolkata`), decides the current date for every rule. `src/utils/calendar.ts`
+expresses "today" as UTC midnight so it compares directly with the stored
+`date`. The browser validates against its own date for quick feedback; the
+server is the authority, so the two can differ only around midnight.
+
+| Choice                                                    | Rationale                                                                                   |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| A new deadline must be today … today + 365 days           | A past deadline is a typo; a far-future one is almost certainly a wrong year                |
+| An expired deadline may be re-sent unchanged on edit      | Otherwise the author could not fix a typo in the title of a role whose deadline just passed |
+| Past the deadline the role stays `OPEN`                   | No scheduler is needed, nothing changes behind the author's back, and extending reopens it  |
+| …but is hidden from browse and refuses applications (409) | `acceptingApplications` is computed in the DTO, so every client agrees on one rule          |
+| The deadline day itself still accepts applications        | "Apply by 31 Oct" means through the 31st                                                    |
+| Publishing a draft whose deadline has passed is `409`     | It would be listed nowhere and accept nobody; the deadline is part of the publish predicate |
+| The apply check runs inside the `FOR SHARE` transaction   | Same place as the status check, so the two rules cannot disagree                            |
+
+**Browse.** `sort=newest|oldest|deadline` (`deadline` puts the soonest first and
+roles without one last) and `deadlineBefore=YYYY-MM-DD` ("closing soon"). `q`
+now also matches compensation, so "unpaid" or "per day" find something.
+
+## Shortlist folders (WBS 1.2.3, Week 10)
+
+**Scope reconciliation.** The client's Week-10 brief listed shortlisting as a
+later phase, but Lab 3 places **1.2.3 Shortlist Management** inside WBS 1.2; the
+client chose to build it now. It needs the author's applicant list, which is
+also WBS 1.3.1.1 ("view applicants per posting"), so that list is built here.
+Moving an application to `SHORTLISTED`/`SELECTED`/`REJECTED` and notifying the
+applicant remain WBS 1.3.
+
+| Choice                                             | Rationale                                                                                                |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Folders belong to one casting role                 | Ownership follows the role, and "Callbacks" for one part means nothing for another                       |
+| An application may be in several folders           | "Strong" and "Second round" are not exclusive; a join table costs nothing extra                          |
+| Filing never changes `status` and never notifies   | Folders are the author's private working notes; status is the visible, notified decision of WBS 1.3      |
+| Names unique per role ignoring case and spacing    | `normalized_name` + unique index, the same pattern as skills; a race still yields one folder and a `409` |
+| ≤ 20 folders per role, enforced under a row lock   | Two concurrent creates cannot both take the last slot                                                    |
+| Filing is idempotent (`201` new, `200` existing)   | Same contract as adding a skill; a double click or retry is not an error                                 |
+| `PUT …/applications/:applicationId` to file        | Filing is "make this membership exist" — idempotent by nature — so `PUT`, not `POST`                     |
+| Another poster gets `404`; a non-poster gets `403` | Same split as every other casting write                                                                  |
+| An application from a different role is `404`      | Checked explicitly; the database would otherwise happily link it                                         |
+| Folders keep working after a role closes           | Final selection usually happens after the call has closed                                                |
+
+**Privacy.** The applicant list carries the same public facts as a public
+profile card — name, profession, location, photo, profile link — and never
+email, phone or user id. Contact is the messaging work of WBS 1.4.
+
+## Media storage on Cloudinary (Week 10)
+
+At the client's request every upload — profile photo, CV, portfolio photos and
+reels (WBS 1.1.2.2, 1.1.2.3) — goes to Cloudinary (cloud `duinyfucs`, folder
+`abhinay`). Files are never stored in the database; rows hold the provider, the
+provider's key and the delivery URL.
+
+**Flow** (the client's specification, made precise):
+
+1. multer streams the file to `STORAGE_ROOT/tmp-uploads/<uuid>.upload` under a
+   size cap. "Local memory" was implemented as a local temporary **file**, not
+   RAM: a 100 MB reel held in memory per request would be a denial-of-service
+   risk, and `sharp` and the Cloudinary SDK both read from a path.
+2. The service validates it: images are decoded and re-encoded by `sharp`; PDFs
+   and videos are identified by their signature.
+3. The file is uploaded to Cloudinary (`upload` for images and PDFs,
+   chunked `upload_large` for videos).
+4. Only after that succeeds is the link written, inside a transaction that
+   locks the profile row.
+5. The temporary file is deleted — by the service before it answers, and again
+   by the upload middleware when the response ends or the connection drops. A
+   sweep on startup and hourly removes anything a crash left behind.
+
+**Edge cases and what happens.**
+
+| Situation                                            | Result                                                                                                                     |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Credentials blank (development)                      | API starts with a warning; uploads answer `503 MEDIA_STORAGE_UNAVAILABLE`                                                  |
+| Credentials blank (production)                       | Startup fails — a server that cannot store uploads should not run                                                          |
+| Not signed in                                        | `401` before multer runs, so nothing touches the disk                                                                      |
+| Over the size cap                                    | `413`, cut off while streaming                                                                                             |
+| Disallowed declared type / wrong field / two files   | `400`                                                                                                                      |
+| Renamed, truncated or disguised file                 | `415` (decode or signature check)                                                                                          |
+| HEIC/AVIF photo sent as a video                      | `415` — same container as MP4, so the brand is checked, not just the box                                                   |
+| Cloudinary rejects, times out or is unreachable      | `502 MEDIA_UPLOAD_FAILED`; no row written; the reason is logged without credentials                                        |
+| Database write fails after upload                    | The uploaded copy is deleted; the previous file and reference are untouched                                                |
+| Reel longer than 3 minutes (known only after upload) | Deleted from Cloudinary again; `422`                                                                                       |
+| Portfolio already full                               | `422` before uploading; re-checked under the lock, the loser's upload deleted                                              |
+| Two concurrent replacements of a photo or CV         | Serialized by the row lock; each deletes exactly the file it replaced; no orphans                                          |
+| Deleting the replaced file fails                     | The request still succeeds; the orphan is logged (an orphan is harmless, a broken link is not)                             |
+| Client aborts mid-upload                             | multer discards the partial file; the middleware deletes it again                                                          |
+| Process crashes mid-request                          | The temporary file is swept within the hour                                                                                |
+| Photos uploaded before Cloudinary                    | Migration backfills `profile_image_provider = LOCAL`; they keep resolving and are deleted from local storage when replaced |
+
+**Placement.** `public_id` is a generated UUID under `abhinay/<kind>/`
+(`profile-photos`, `resumes`, `portfolio-photos`, `reels`), set with both
+`folder` and `asset_folder` so it lands in the right media-library folder in
+both fixed- and dynamic-folder accounts. PDFs are `raw` uploads with `.pdf` in
+the id, so the delivery URL ends in `.pdf` and is not subject to Cloudinary's
+image-delivery restrictions on PDFs. `overwrite: false`. Deletion uses
+`invalidate: true` to purge CDN copies.
+
+**Testing.** The suites run with `MEDIA_STORAGE=local`, a filesystem driver
+behind the same interface, so they need no network and no account. The
+Cloudinary driver is unit-tested with the SDK mocked (folders, resource types,
+chunking, error mapping, secret never logged). Failure paths in the service are
+exercised by spying on the driver.
+
+**Privacy.** A CV is public on the profile; the upload form says so. Cloudinary
+delivery URLs are unguessable but unauthenticated; signed, expiring URLs are the
+upgrade path if CVs ever need to be private.
 
 ## Theme completion (Week 9)
 
@@ -361,8 +474,10 @@ check in `apps/backend/prisma/seed.ts`.
   of scope.
 - `AUTH_RATE_LIMIT_*` is in-process, so it resets on restart and is per-instance.
   A shared store was explicitly ruled out for a local stack.
-- Profile photos are stored on the local filesystem. The storage interface is
-  the seam for a cloud adapter; integrating one is a later phase.
+- Reel duration is only checked by Cloudinary. In `MEDIA_STORAGE=local` (tests,
+  offline work) there is no duration limit.
+- A file whose deletion fails after a replacement stays in Cloudinary as an
+  orphan; there is no reconciliation job.
 - Role is fixed at registration. No endpoint changes it, by design.
 - "Concurrent use of one refresh token yields at most one success" is
   timing-dependent: a request that reads the token just after another request's

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui';
 import { ROLE_LABELS, type CastingRoleSummary } from '@/types';
 import { CastingStatusBadge } from './CastingStatusBadge';
-import { formatDate } from './format';
+import { deadlineLabel, formatDate } from './format';
 
 /** One result in a casting list. The title is the link, so the card reads well to a screen reader. */
 export function CastingRoleCard({
@@ -13,6 +13,8 @@ export function CastingRoleCard({
   showStatus?: boolean;
 }) {
   const posted = role.publishedAt ? `Posted ${formatDate(role.publishedAt)}` : 'Not published';
+  const deadline = deadlineLabel(role);
+  const deadlinePassed = role.status === 'OPEN' && !role.acceptingApplications;
 
   return (
     <li>
@@ -35,6 +37,14 @@ export function CastingRoleCard({
           <p className="text-sm text-zinc-300">{role.descriptionPreview}</p>
           <p className="text-xs text-zinc-500">
             {role.postedBy.name} · {posted}
+            {deadline ? (
+              <>
+                {' · '}
+                <span className={deadlinePassed ? 'text-amber-400' : 'text-zinc-300'}>
+                  {deadline}
+                </span>
+              </>
+            ) : null}
           </p>
         </CardContent>
       </Card>

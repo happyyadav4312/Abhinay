@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { env } from './config/env';
-import { PUBLIC_MEDIA_PATH, profilePhotoStorage } from './config/storage';
+import { localMediaStorage, MEDIA_CATEGORIES, MEDIA_ROUTE_PREFIX } from './config/storage';
 import routes from './routes';
 import { CLIENT_HEADER } from './middleware/origin.middleware';
 import { errorHandler } from './middleware/error.middleware';
@@ -65,18 +65,22 @@ if (env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// ── Static media ────────────────────────────────────────
-// Only the processed profile-photo directory is exposed. Originals are never
-// written to disk, so there is nothing private under this path.
-app.use(
-  PUBLIC_MEDIA_PATH,
-  express.static(profilePhotoStorage.publicDirectory(), {
-    index: false,
-    dotfiles: 'deny',
-    fallthrough: true,
-    maxAge: '1h',
-  })
-);
+// ── Static media (LOCAL driver only) ────────────────────
+// Files kept by the LOCAL media driver — the test suites, and profile photos
+// uploaded before Cloudinary — are served from one directory per category.
+// Cloudinary files are delivered by Cloudinary and never pass through here.
+// The temporary upload directory is deliberately NOT exposed.
+for (const category of MEDIA_CATEGORIES) {
+  app.use(
+    `${MEDIA_ROUTE_PREFIX}/${category}`,
+    express.static(localMediaStorage.directoryFor(category), {
+      index: false,
+      dotfiles: 'deny',
+      fallthrough: true,
+      maxAge: '1h',
+    })
+  );
+}
 
 // ── Routes ──────────────────────────────────────────────
 app.use('/api/v1', routes);

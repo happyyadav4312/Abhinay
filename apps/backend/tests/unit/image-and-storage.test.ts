@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 import { processProfilePhoto, UPLOAD_POLICY } from '../../src/services/image.service';
-import { toPhotoUrl, toPublicProfile } from '../../src/services/dto';
+import { photoUrlOf, toPhotoUrl, toPublicProfile } from '../../src/services/dto';
 import { env } from '../../src/config/env';
-import { Role } from '@prisma/client';
+import { Role, StorageProvider } from '@prisma/client';
 import { AppError } from '../../src/utils/errors';
 
 async function image(format: 'jpeg' | 'png' | 'webp' | 'gif', width = 900, height = 400) {
@@ -70,10 +70,22 @@ describe('photo URLs', () => {
     expect(toPhotoUrl('abc.webp')).toBe(`${env.PUBLIC_SERVER_URL}/media/profile-photos/abc.webp`);
     expect(toPhotoUrl(null)).toBeNull();
   });
+
+  it('prefer the stored delivery URL and fall back to the local key for older photos', () => {
+    const cloud = 'https://res.cloudinary.com/demo/image/upload/v1/abhinay/profile-photos/x.webp';
+    expect(photoUrlOf({ profileImage: 'abhinay/profile-photos/x', profileImageUrl: cloud })).toBe(
+      cloud
+    );
+    expect(photoUrlOf({ profileImage: 'legacy.webp', profileImageUrl: null })).toBe(
+      `${env.PUBLIC_SERVER_URL}/media/profile-photos/legacy.webp`
+    );
+    expect(photoUrlOf({ profileImage: null, profileImageUrl: cloud })).toBeNull();
+    expect(photoUrlOf(null)).toBeNull();
+  });
 });
 
 describe('public profile projection', () => {
-  it('omits email, phone and every user-table secret', () => {
+  it('omits email, phone, storage keys and every user-table secret', () => {
     const now = new Date();
     const projected = toPublicProfile({
       id: 'profile-1',
@@ -82,8 +94,17 @@ describe('public profile projection', () => {
       location: 'Pune',
       phone: '+91 90000 00000',
       profileImage: 'k.webp',
+      profileImageUrl: null,
+      profileImageProvider: StorageProvider.LOCAL,
+      resumeKey: 'abhinay/resumes/secret-key.pdf',
+      resumeUrl: 'https://res.cloudinary.com/demo/raw/upload/v1/abhinay/resumes/cv.pdf',
+      resumeProvider: StorageProvider.CLOUDINARY,
+      resumeFileName: 'cv.pdf',
+      resumeBytes: 1234,
+      resumeUploadedAt: now,
       createdAt: now,
       updatedAt: now,
+      portfolio: [],
       user: {
         id: 'user-1',
         name: 'Public Name',
@@ -105,5 +126,15 @@ describe('public profile projection', () => {
     expect(serialized).not.toContain('private@example.test');
     expect(serialized).not.toContain('$2b$12$notarealhash');
     expect(serialized).not.toContain('+91 90000 00000');
+
+    // Only delivery URLs leave the server, never storage keys or providers.
+    expect(serialized).not.toContain('secret-key');
+    expect(serialized).not.toContain('CLOUDINARY');
+    expect(projected.resume).toEqual({
+      url: 'https://res.cloudinary.com/demo/raw/upload/v1/abhinay/resumes/cv.pdf',
+      fileName: 'cv.pdf',
+      bytes: 1234,
+      uploadedAt: now.toISOString(),
+    });
   });
 });

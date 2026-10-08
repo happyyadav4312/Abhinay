@@ -19,6 +19,10 @@ export const ErrorCode = {
   CASTING_ROLE_NOT_DRAFT: 'CASTING_ROLE_NOT_DRAFT',
   CASTING_ROLE_NOT_OPEN: 'CASTING_ROLE_NOT_OPEN',
   ALREADY_APPLIED: 'ALREADY_APPLIED',
+  DEADLINE_PASSED: 'DEADLINE_PASSED',
+  FOLDER_NAME_TAKEN: 'FOLDER_NAME_TAKEN',
+  MEDIA_STORAGE_UNAVAILABLE: 'MEDIA_STORAGE_UNAVAILABLE',
+  MEDIA_UPLOAD_FAILED: 'MEDIA_UPLOAD_FAILED',
   PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
   UNSUPPORTED_MEDIA_TYPE: 'UNSUPPORTED_MEDIA_TYPE',
   TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
@@ -93,3 +97,19 @@ export const payloadTooLarge = (message: string) =>
 
 export const unsupportedMediaType = (message: string) =>
   new AppError(415, ErrorCode.UNSUPPORTED_MEDIA_TYPE, message);
+
+/** A count limit (skills, portfolio items, folders) would be exceeded. */
+export const limitExceeded = (message: string, field?: string) =>
+  new AppError(422, ErrorCode.LIMIT_EXCEEDED, message, field ? { [field]: [message] } : undefined);
+
+/** The media provider is not configured, so no upload can succeed right now. */
+export const mediaStorageUnavailable = () =>
+  new AppError(
+    503,
+    ErrorCode.MEDIA_STORAGE_UNAVAILABLE,
+    'File uploads are not available right now. Please try again later.'
+  );
+
+/** The media provider refused or failed an upload. Nothing was saved. */
+export const mediaUploadFailed = (message = 'The file could not be stored. Please try again.') =>
+  new AppError(502, ErrorCode.MEDIA_UPLOAD_FAILED, message);

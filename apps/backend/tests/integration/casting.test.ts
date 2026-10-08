@@ -346,7 +346,8 @@ describe('GET /api/v1/casting (browse)', () => {
     expect((await browse(`pageSize=${LIMITS.PAGE_SIZE_MAX + 1}`)).status).toBe(422);
     expect((await browse('page=0')).status).toBe(422);
     expect((await browse('seekingRole=ADMIN')).status).toBe(422);
-    expect((await browse('sort=oldest')).status).toBe(422);
+    expect((await browse('sort=popular')).status).toBe(422);
+    expect((await browse('status=DRAFT')).status).toBe(422);
     expect((await browse('q=a&q=b')).status).toBe(422);
     expect((await browse(`q=${'x'.repeat(LIMITS.CASTING_SEARCH_MAX + 1)}`)).status).toBe(422);
 

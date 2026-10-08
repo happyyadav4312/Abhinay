@@ -1,7 +1,8 @@
 # System Architecture
 
-Scope: WBS 1.1 — accounts, authentication and professional profiles — and
-WBS 1.2.1–1.2.2 — casting role posting, browse, search and apply.
+Scope: WBS 1.1 — accounts, authentication, professional profiles and their
+media (photo, CV, portfolio photos, reels) — and WBS 1.2 — casting role posting,
+browse, search, apply and shortlist folders.
 
 ## Shape of the system
 
@@ -10,39 +11,38 @@ WBS 1.2.1–1.2.2 — casting role posting, browse, search and apply.
 │ Browser                                                      │
 │   access token in memory · refreshToken HttpOnly cookie      │
 └───────────────┬──────────────────────────────┬───────────────┘
-                │ fetch (credentials: include) │ <img src=…>
+                │ fetch (credentials: include) │ <img>/<video>/CV link
                 ▼                              ▼
 ┌───────────────────────────────┐   ┌──────────────────────────┐
-│ Next.js (App Router)          │   │ Express static media     │
-│ http://localhost:3000         │   │ /media/profile-photos    │
-│ pages · components · hooks    │   └──────────────────────────┘
-│ lib/api.ts (the only caller)  │
-└───────────────┬───────────────┘
-                │ REST /api/v1 (JSON, cookies)
-                ▼
-┌──────────────────────────────────────────────────────────────┐
+│ Next.js (App Router)          │   │ Cloudinary CDN           │
+│ http://localhost:3000         │   │ abhinay/<kind>/…         │
+│ pages · components · hooks    │   │ (or Express /media/… in  │
+│ lib/api.ts (the only caller)  │   │  local mode and tests)   │
+└───────────────┬───────────────┘   └──────────────────────────┘
+                │ REST /api/v1 (JSON, multipart, cookies)  ▲
+                ▼                                          │ signed upload
+┌──────────────────────────────────────────────────────────┴───┐
 │ Express API — http://localhost:5000/api/v1                   │
 │                                                              │
 │  helmet → cors → json(32 KiB) → cookies → logging            │
 │  routes → [rate limit] [origin] [authenticate] [requireRole] │
+│         → [multer → STORAGE_ROOT/tmp-uploads]                │
 │         → controllers (thin) → services (logic) → Prisma     │
 │  notFound → centralized error handler                        │
-└───────────────┬──────────────────────────────┬───────────────┘
-                │                              │
-                ▼                              ▼
-     ┌─────────────────────┐        ┌────────────────────────┐
-     │ PostgreSQL          │        │ Filesystem storage     │
-     │ users · profiles    │        │ STORAGE_ROOT/          │
-     │ skills · experiences│        │   profile-photos/      │
-     │ refresh_tokens      │        │ (ProfilePhotoStorage)  │
-     │ casting_roles       │        │                        │
-     │ applications        │        │                        │
-     └─────────────────────┘        └────────────────────────┘
+└───────────────┬──────────────────────────────────────────────┘
+                │
+                ▼
+     ┌──────────────────────────────────────────────┐
+     │ PostgreSQL — rows and media LINKS, no bytes  │
+     │ users · profiles · portfolio_items · skills  │
+     │ experiences · refresh_tokens · casting_roles │
+     │ applications · shortlist_folders/_entries    │
+     └──────────────────────────────────────────────┘
 ```
 
-Next.js never talks to PostgreSQL and the backend never renders HTML. Profile
-images are fetched straight from the Express origin, not proxied through
-Next.js and not under `/api`.
+Next.js never talks to PostgreSQL and the backend never renders HTML. Media is
+fetched straight from Cloudinary (or, in local mode, from the Express origin) —
+never proxied through Next.js and never under `/api`.
 
 ## Technology
 
@@ -50,6 +50,7 @@ Next.js and not under `/api`.
 | -------- | --------------------------------------------------------------------------- |
 | Frontend | Next.js (App Router), React, TypeScript, Tailwind CSS, React Hook Form, Zod |
 | Backend  | Node.js, Express, TypeScript, Zod, jsonwebtoken, bcrypt, multer, sharp      |
+| Media    | Cloudinary (Node SDK v2); local filesystem driver for tests                 |
 | Data     | PostgreSQL, Prisma ORM                                                      |
 | Tests    | Vitest, Supertest, Playwright                                               |
 | Tooling  | npm workspaces, ESLint, Prettier                                            |
@@ -146,13 +147,15 @@ transaction, under a row lock on the casting role.
 
 ```
 User 1───1 Profile ──* ProfileSkill *── Skill        (shared vocabulary)
-              └──────* Experience                     (calendar dates)
+              ├──────* Experience                     (calendar dates)
+              └──────* PortfolioItem                  (photo / reel links)
 User ────────* RefreshToken                           (digest only)
 User ────────* CastingRole ──* Application *── User  (one per member per role)
+                   └──────* ShortlistFolder ──* ShortlistEntry *── Application
 ```
 
 `User.name` is the single authoritative display name. `Profile` carries bio,
-location, phone and the opaque photo key. Ownership is enforced inside the
+location, phone, and the (provider, key, URL) of its photo and CV. Ownership is enforced inside the
 database predicate of every mutation (`where: { id, profileId }`), so
 substituting an id in a request cannot reach another user's row even under
 concurrency.
@@ -164,17 +167,23 @@ timestamps) and the owner one. Both are built by explicit functions in
 ## Upload path
 
 ```
-multipart (memory) → size/MIME early reject (multer)
-                   → decode & validate (sharp)     ─ 415/413 on failure
-                   → re-encode 512×512 WebP        ─ strips EXIF and payloads
-                   → write with a generated UUID name
-                   → update profiles.profile_image
-                   → delete the superseded file
+authenticate (401 before a byte is written)
+  → multer → STORAGE_ROOT/tmp-uploads/<uuid>.upload   size cap while streaming (413)
+  → storage configured?                               503 otherwise
+  → validate: images decoded by sharp, PDF/video by signature   415 / 422
+  → images re-encoded to WebP                         strips EXIF and payloads
+  → upload to Cloudinary (abhinay/<kind>/<uuid>)      502 on any provider failure
+  → transaction: lock profile row, write provider + key + URL
+        └─ fails → delete the uploaded copy
+  → delete the superseded file (best effort, logged)
+  → temporary file deleted — on success and on every failure
 ```
 
-Validation happens before anything is written, and the row is updated before
+Validation happens before anything is uploaded, and the row is updated before
 the old file is deleted, so a failure never leaves a profile pointing at a
-missing image.
+missing file. A sweep on startup and hourly removes temporary files a crash
+left behind. `MEDIA_STORAGE=local` swaps Cloudinary for a filesystem driver with
+the same interface (`apps/backend/src/config/storage.ts`).
 
 ## Repository layout
 

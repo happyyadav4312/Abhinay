@@ -116,6 +116,7 @@ function EditCastingRole({ id }: { id: string }) {
           <CastingRoleForm
             ariaLabel="Edit casting role"
             defaultValues={castingRoleToFormValues(role)}
+            savedDeadline={role.applicationDeadline}
             actions={[{ intent: 'save', label: 'Save changes', pendingLabel: 'Saving…' }]}
             defaultIntent="save"
             onSubmit={handleSubmit}

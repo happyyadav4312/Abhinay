@@ -8,12 +8,14 @@ directors, producers, camera operators, editors and other crew.
 Delivered so far:
 
 - **WBS 1.1 User Management & Profiles** — accounts and authentication (1.1.1)
-  and professional profile management (1.1.2).
-- **WBS 1.2 Casting Marketplace, 1.2.1–1.2.2** — producers and directors post
-  casting roles (1.2.1); every signed-in member browses and searches the open
-  ones and applies to those cast for their own profession (1.2.2).
+  and professional profile management (1.1.2), including a profile photo, a CV
+  and a portfolio of photos and show reels, stored on Cloudinary.
+- **WBS 1.2 Casting Marketplace** — producers and directors post casting roles
+  with an optional application deadline (1.2.1); every signed-in member browses,
+  searches, sorts and applies to roles cast for their own profession (1.2.2);
+  authors review their applicants and sort them into shortlist folders (1.2.3).
 
-Shortlists, reviewing applicants, messaging and project features are not
+Changing an application's status, messaging and project features are not
 implemented yet; see [`docs/requirements.md`](docs/requirements.md#non-goals).
 
 ## Stack
@@ -23,6 +25,7 @@ implemented yet; see [`docs/requirements.md`](docs/requirements.md#non-goals).
 | Frontend | Next.js (App Router), React, TypeScript, Tailwind CSS, React Hook Form, Zod |
 | Backend  | Node.js, Express, TypeScript, JWT, bcrypt, Zod, multer, sharp               |
 | Data     | PostgreSQL, Prisma ORM                                                      |
+| Media    | Cloudinary (uploads); the database stores only links                        |
 | Tests    | Vitest, Supertest, Playwright                                               |
 | Tooling  | npm workspaces, ESLint, Prettier                                            |
 
@@ -115,6 +118,12 @@ Then fill in:
   node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
   ```
 
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` — from
+  the Cloudinary console (**Settings → API Keys**). Uploads go to the
+  `CLOUDINARY_FOLDER` folder (default `abhinay`). Without the key and secret the
+  API still starts in development, and upload endpoints answer `503` until they
+  are set. Set `MEDIA_STORAGE=local` to keep uploads on disk instead.
+
 Everything else has a working default. The full list, with comments, is in
 [`.env.example`](.env.example); configuration is validated at startup by
 `apps/backend/src/config/env.ts`.
@@ -168,9 +177,14 @@ With both servers running:
    confirm. The page shows the application, and **My applications** lists it. A
    member of any other profession sees why they cannot apply instead of a
    button.
-9. Back as the producer, the role shows **1 application so far**. **Close
-   role**: it disappears from search but stays under **My postings → Closed**,
-   and the actor's application stays listed.
+9. Back as the producer, the role shows **1 application so far**. Open
+   **Review applicants & shortlists**, create a folder such as "Callbacks" and
+   file the actor into it; the folder chip filters the list.
+10. **Close role**: it disappears from search but stays under **My postings →
+    Closed**, the actor's application stays listed, and the folders keep working.
+11. On **Profile → Edit profile**, upload a CV (PDF), a portfolio photo and a
+    short reel; they appear on the public profile and in your Cloudinary
+    `abhinay` folder.
 
 ## Tests
 
@@ -206,7 +220,8 @@ npm run verify             # format:check → lint → typecheck → db:validate
 ```
 
 `npm run test:e2e` builds both apps and starts them on ports 3100/5100 with
-`STORAGE_ROOT=storage-e2e`, so a running `npm run dev` is not disturbed.
+`STORAGE_ROOT=storage-e2e`, so a running `npm run dev` is not disturbed. The
+suites set `MEDIA_STORAGE=local`, so they never call Cloudinary.
 
 ## All root scripts
 
@@ -234,34 +249,46 @@ Neither `db:migrate` nor `db:migrate:deploy` resets a database.
 Base URL `http://localhost:5000/api/v1`. Full contract:
 [`docs/api.md`](docs/api.md).
 
-| Method | Path                        | Access                                                  |
-| ------ | --------------------------- | ------------------------------------------------------- |
-| GET    | `/health`                   | Public                                                  |
-| POST   | `/auth/register`            | Public                                                  |
-| POST   | `/auth/login`               | Public                                                  |
-| POST   | `/auth/refresh`             | Refresh cookie + `X-Abhinay-Client: web`                |
-| POST   | `/auth/logout`              | Refresh cookie + `X-Abhinay-Client: web`                |
-| GET    | `/auth/me`                  | Bearer                                                  |
-| GET    | `/profile/me`               | Bearer                                                  |
-| PUT    | `/profile/me`               | Bearer                                                  |
-| GET    | `/profile/:id`              | Public                                                  |
-| POST   | `/profile/skills`           | Bearer                                                  |
-| DELETE | `/profile/skills/:id`       | Bearer                                                  |
-| POST   | `/profile/experience`       | Bearer                                                  |
-| PUT    | `/profile/experience/:id`   | Bearer                                                  |
-| DELETE | `/profile/experience/:id`   | Bearer                                                  |
-| POST   | `/profile/photo`            | Bearer, multipart field `photo`                         |
-| DELETE | `/profile/photo`            | Bearer                                                  |
-| GET    | `/casting`                  | Bearer — open roles, search and filters                 |
-| POST   | `/casting`                  | Bearer, `PRODUCER` or `DIRECTOR`                        |
-| GET    | `/casting/mine`             | Bearer, `PRODUCER` or `DIRECTOR`                        |
-| GET    | `/casting/:id`              | Bearer — a draft only for its author                    |
-| PUT    | `/casting/:id`              | Bearer, author; not once closed                         |
-| PATCH  | `/casting/:id/status`       | Bearer, author — publish or close                       |
-| DELETE | `/casting/:id`              | Bearer, author; drafts only                             |
-| POST   | `/casting/:id/applications` | Bearer — matching profession, not the author, role open |
-| GET    | `/applications/mine`        | Bearer                                                  |
-| GET    | `/admin/users`              | Bearer, `ADMIN` only                                    |
+| Method | Path                                                            | Access                                                  |
+| ------ | --------------------------------------------------------------- | ------------------------------------------------------- |
+| GET    | `/health`                                                       | Public                                                  |
+| POST   | `/auth/register`                                                | Public                                                  |
+| POST   | `/auth/login`                                                   | Public                                                  |
+| POST   | `/auth/refresh`                                                 | Refresh cookie + `X-Abhinay-Client: web`                |
+| POST   | `/auth/logout`                                                  | Refresh cookie + `X-Abhinay-Client: web`                |
+| GET    | `/auth/me`                                                      | Bearer                                                  |
+| GET    | `/profile/me`                                                   | Bearer                                                  |
+| PUT    | `/profile/me`                                                   | Bearer                                                  |
+| GET    | `/profile/:id`                                                  | Public                                                  |
+| POST   | `/profile/skills`                                               | Bearer                                                  |
+| DELETE | `/profile/skills/:id`                                           | Bearer                                                  |
+| POST   | `/profile/experience`                                           | Bearer                                                  |
+| PUT    | `/profile/experience/:id`                                       | Bearer                                                  |
+| DELETE | `/profile/experience/:id`                                       | Bearer                                                  |
+| POST   | `/profile/photo`                                                | Bearer, multipart field `photo`                         |
+| DELETE | `/profile/photo`                                                | Bearer                                                  |
+| POST   | `/profile/resume`                                               | Bearer, multipart field `resume` (PDF)                  |
+| DELETE | `/profile/resume`                                               | Bearer                                                  |
+| POST   | `/profile/portfolio/photos`                                     | Bearer, multipart `photo` + optional `title`            |
+| POST   | `/profile/portfolio/videos`                                     | Bearer, multipart `video` + optional `title`            |
+| DELETE | `/profile/portfolio/:id`                                        | Bearer, own items only                                  |
+| GET    | `/casting`                                                      | Bearer — open roles, search, filters, sort              |
+| POST   | `/casting`                                                      | Bearer, `PRODUCER` or `DIRECTOR`                        |
+| GET    | `/casting/mine`                                                 | Bearer, `PRODUCER` or `DIRECTOR`                        |
+| GET    | `/casting/:id`                                                  | Bearer — a draft only for its author                    |
+| PUT    | `/casting/:id`                                                  | Bearer, author; not once closed                         |
+| PATCH  | `/casting/:id/status`                                           | Bearer, author — publish or close                       |
+| DELETE | `/casting/:id`                                                  | Bearer, author; drafts only                             |
+| POST   | `/casting/:id/applications`                                     | Bearer — matching profession, not the author, role open |
+| GET    | `/casting/:id/applications`                                     | Bearer, author — applicants, optionally one folder      |
+| GET    | `/casting/:id/shortlists`                                       | Bearer, author                                          |
+| POST   | `/casting/:id/shortlists`                                       | Bearer, author — create a folder                        |
+| PATCH  | `/casting/:id/shortlists/:folderId`                             | Bearer, author — rename                                 |
+| DELETE | `/casting/:id/shortlists/:folderId`                             | Bearer, author                                          |
+| PUT    | `/casting/:id/shortlists/:folderId/applications/:applicationId` | Bearer, author — file                                   |
+| DELETE | `/casting/:id/shortlists/:folderId/applications/:applicationId` | Bearer, author — unfile                                 |
+| GET    | `/applications/mine`                                            | Bearer                                                  |
+| GET    | `/admin/users`                                                  | Bearer, `ADMIN` only                                    |
 
 Example:
 
@@ -316,7 +343,8 @@ into `adminAccessToken`).
 - [API reference](docs/api.md) · [conventions](docs/api/api-conventions.md)
 - [Database design](docs/database/database-design.md)
 - [Implementation decisions](docs/implementation-decisions.md)
-- [Week 1–5 status](docs/week-1-5-status.md) · [Week 6–9 status](docs/week-6-9-status.md)
+- [Week 1–5 status](docs/week-1-5-status.md) · [Week 6–9 status](docs/week-6-9-status.md) ·
+  [Week 10 status](docs/week-10-status.md)
 
 ## License
 

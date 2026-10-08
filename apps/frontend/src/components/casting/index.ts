@@ -9,5 +9,5 @@ export {
   type CastingFormAction,
 } from './CastingRoleForm';
 export { CastingStatusBadge } from './CastingStatusBadge';
-export { formatDate } from './format';
+export { deadlineLabel, formatCalendarDate, formatDate } from './format';
 export { Pager } from './Pager';

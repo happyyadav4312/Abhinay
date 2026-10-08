@@ -10,8 +10,17 @@ import { ApiError, profileApi } from '@/lib/api';
 import { LIMITS, profileFormSchema, type ProfileFormValues } from '@/lib/validation';
 import { RequireAuth } from '@/components/common';
 import { Alert, Button, Card, Field, Input, Spinner, Textarea } from '@/components/ui';
-import { ROLE_LABELS, type Experience, type OwnProfile, type Skill } from '@/types';
+import {
+  ROLE_LABELS,
+  type Experience,
+  type OwnProfile,
+  type PortfolioItem,
+  type Resume,
+  type Skill,
+} from '@/types';
 import { PhotoSection } from './PhotoSection';
+import { PortfolioSection } from './PortfolioSection';
+import { ResumeSection } from './ResumeSection';
 import { SkillsSection } from './SkillsSection';
 import { ExperienceSection } from './ExperienceSection';
 
@@ -23,6 +32,8 @@ function EditProfileContent() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [resume, setResume] = useState<Resume | null>(null);
+  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +70,8 @@ function EditProfileContent() {
         setSkills(loaded.skills);
         setExperiences(loaded.experiences);
         setPhotoUrl(loaded.photoUrl);
+        setResume(loaded.resume);
+        setPortfolio(loaded.portfolio);
         reset({
           name: loaded.name,
           bio: loaded.bio ?? '',
@@ -92,6 +105,8 @@ function EditProfileContent() {
     setPhotoUrl(updated.photoUrl);
     setSkills(updated.skills);
     setExperiences(updated.experiences);
+    setResume(updated.resume);
+    setPortfolio(updated.portfolio);
   }
 
   async function onSave(values: ProfileFormValues) {
@@ -244,6 +259,8 @@ function EditProfileContent() {
 
       <SkillsSection skills={skills} onChange={setSkills} />
       <ExperienceSection experiences={experiences} onChange={setExperiences} />
+      <PortfolioSection items={portfolio} onChange={setPortfolio} />
+      <ResumeSection resume={resume} onUpdated={applySubOperation} />
     </div>
   );
 }

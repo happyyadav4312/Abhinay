@@ -1,19 +1,29 @@
 import { Router } from 'express';
 import {
+  addPortfolioPhotoController,
+  addReelController,
   addSkillController,
   createExperienceController,
   deleteExperienceController,
+  deletePortfolioItemController,
   getOwnProfileController,
   getPublicProfileController,
   removePhotoController,
+  removeResumeController,
   removeSkillController,
   updateExperienceController,
   updateOwnProfileController,
   uploadPhotoController,
+  uploadResumeController,
 } from '../controllers/profile.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { requireTrustedOrigin } from '../middleware/origin.middleware';
-import { uploadProfilePhoto } from '../middleware/upload.middleware';
+import {
+  uploadPortfolioPhoto,
+  uploadProfilePhoto,
+  uploadReel,
+  uploadResume,
+} from '../middleware/upload.middleware';
 import { asyncHandler } from '../utils/asyncHandler';
 
 const router = Router();
@@ -76,7 +86,7 @@ router.post(
   '/photo',
   requireTrustedOrigin,
   asyncHandler(authenticate),
-  uploadProfilePhoto,
+  ...uploadProfilePhoto,
   asyncHandler(uploadPhotoController)
 );
 router.delete(
@@ -84,6 +94,45 @@ router.delete(
   requireTrustedOrigin,
   asyncHandler(authenticate),
   asyncHandler(removePhotoController)
+);
+
+// ── CV ──────────────────────────────────────────────────
+// Authentication runs before multer, so an anonymous upload is refused before a
+// single byte is written to the temporary directory.
+router.post(
+  '/resume',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  ...uploadResume,
+  asyncHandler(uploadResumeController)
+);
+router.delete(
+  '/resume',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  asyncHandler(removeResumeController)
+);
+
+// ── Portfolio photos and reels ──────────────────────────
+router.post(
+  '/portfolio/photos',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  ...uploadPortfolioPhoto,
+  asyncHandler(addPortfolioPhotoController)
+);
+router.post(
+  '/portfolio/videos',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  ...uploadReel,
+  asyncHandler(addReelController)
+);
+router.delete(
+  '/portfolio/:id',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  asyncHandler(deletePortfolioItemController)
 );
 
 // ── Public profile (must stay last) ─────────────────────

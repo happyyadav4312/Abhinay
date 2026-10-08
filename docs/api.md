@@ -6,7 +6,8 @@ Complete contract for the Express API. Conventions that apply to every endpoint
 per-endpoint specification.
 
 - Base URL: `http://localhost:5000/api/v1`
-- Content type: `application/json`, except the multipart photo upload.
+- Content type: `application/json`, except the multipart uploads (photo, CV,
+  portfolio).
 - All identifiers are opaque UUID strings.
 
 ## Envelope
@@ -42,9 +43,10 @@ onto specific input fields. A `204` response has no body at all.
 `FORBIDDEN_ORIGIN` (403), `MISSING_CLIENT_HEADER` (403), `NOT_ELIGIBLE` (403),
 `NOT_FOUND` (404), `EMAIL_TAKEN` (409), `INVALID_STATUS_TRANSITION` (409),
 `CASTING_ROLE_CLOSED` (409), `CASTING_ROLE_NOT_DRAFT` (409), `CASTING_ROLE_NOT_OPEN` (409),
-`ALREADY_APPLIED` (409), `PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415),
-`TOO_MANY_REQUESTS` (429), `LIMIT_EXCEEDED` (422), `INTERNAL_ERROR` (500),
-`SERVICE_UNAVAILABLE` (503).
+`ALREADY_APPLIED` (409), `DEADLINE_PASSED` (409), `FOLDER_NAME_TAKEN` (409),
+`PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415), `TOO_MANY_REQUESTS` (429),
+`LIMIT_EXCEEDED` (422), `INTERNAL_ERROR` (500), `MEDIA_UPLOAD_FAILED` (502),
+`SERVICE_UNAVAILABLE` (503), `MEDIA_STORAGE_UNAVAILABLE` (503).
 
 ## Authentication
 
@@ -103,9 +105,15 @@ carries no ambient cookies and is therefore not a CSRF vector.
 | casting `compensation`              | 1–200 characters, trimmed (free text, e.g. "₹15,000 per shooting day")                 |
 | casting `location`                  | 1–120 characters, trimmed                                                              |
 | casting `seekingRole`               | one of the six public roles; never `ADMIN`                                             |
+| casting `applicationDeadline`       | optional `YYYY-MM-DD`; a new value must be today … today + 365 days (`APP_TIME_ZONE`)  |
 | casting search `q`                  | ≤ 100 characters; `pageSize` 1–50 (default 20)                                         |
+| shortlist folder `name`             | 1–60 characters, trimmed; unique per role ignoring case; at most 20 folders per role   |
 | JSON body                           | 32 KiB; a larger body is rejected with 413                                             |
 | photo                               | one JPEG/PNG/WebP file ≤ 5 MiB, ≤ 6000 px per side before processing                   |
+| portfolio photo                     | one JPEG/PNG/WebP file ≤ 10 MiB, ≤ 6000 px per side; at most 12 per profile            |
+| reel                                | one MP4/MOV/WebM file ≤ 100 MB and ≤ 3 minutes; at most 4 per profile                  |
+| CV                                  | one PDF ≤ 5 MiB                                                                        |
+| portfolio `title`                   | optional, ≤ 100 characters                                                             |
 
 Optional text fields accept `null` or `""` to clear them; both are stored as
 `NULL` and returned as `null`.
@@ -366,41 +374,125 @@ which also strips EXIF and anything smuggled alongside the pixels.
 
 `200` returns the full owner projection with the new `photoUrl`.
 
-Ordering guarantees: the image is validated and written before the row is
-updated, and the superseded file is deleted only after the update succeeds. A
-failed upload therefore never blanks out a working photo.
+Ordering guarantees — the same for every upload below (see
+[Media storage](#media-storage)): the file is validated, then uploaded to the
+media provider, and only then is the row updated; the superseded file is deleted
+last. A failed upload therefore never blanks out a working photo.
 
-Failures: `400 BAD_REQUEST` (no `photo` field), `413 PAYLOAD_TOO_LARGE`
-(too large in bytes or dimensions), `415 UNSUPPORTED_MEDIA_TYPE` (not a
-decodable JPEG/PNG/WebP — including SVG, renamed executables and truncated
-files), `401`.
+Failures: `400 BAD_REQUEST` (no `photo` field, or a type outside the
+allowlist), `413 PAYLOAD_TOO_LARGE` (too large in bytes or dimensions),
+`415 UNSUPPORTED_MEDIA_TYPE` (not a decodable JPEG/PNG/WebP — including SVG,
+renamed executables and truncated files), `502 MEDIA_UPLOAD_FAILED`,
+`503 MEDIA_STORAGE_UNAVAILABLE`, `401`.
 
 ## DELETE /profile/photo
 
 Bearer. Clears the reference and removes the stored file. `200` with the owner
 projection and `photoUrl: null`. Idempotent when there is no photo.
 
-## Media URLs
+## POST /profile/resume
 
-Processed photos are served as static files from:
+Bearer. `multipart/form-data` with one file field named `resume`: a PDF of at
+most 5 MiB. The file must start with `%PDF-` and end with an `%%EOF` marker;
+anything else — whatever its name or declared type — is `415`. The PDF is
+stored unaltered. Replaces any previous CV, whose file is then deleted.
 
+`200` with the owner projection, whose `resume` is:
+
+```json
+{
+  "url": "https://res.cloudinary.com/…/abhinay/resumes/…pdf",
+  "fileName": "Meera CV.pdf",
+  "bytes": 81234,
+  "uploadedAt": "2026-10-08T11:00:00.000Z"
+}
 ```
-GET {PUBLIC_SERVER_URL}/media/profile-photos/<opaque-name>.webp
+
+`fileName` is the client's name with path parts and control characters removed —
+display text only. The CV is part of the public profile.
+
+Failures: as for the photo.
+
+## DELETE /profile/resume
+
+Bearer. `200` with `resume: null`. Idempotent.
+
+## POST /profile/portfolio/photos
+
+Bearer. `multipart/form-data`: file field `photo` (JPEG/PNG/WebP, ≤ 10 MiB) and
+an optional text field `title` (≤ 100 characters). Any other form field is
+`422`. The image is decoded and re-encoded to WebP no larger than 2048 px on
+either side (aspect ratio kept, never enlarged), which strips EXIF including GPS
+location.
+
+`201 { "item": PortfolioItem }`:
+
+```json
+{
+  "id": "7d2a…",
+  "kind": "PHOTO",
+  "url": "https://res.cloudinary.com/…/abhinay/portfolio-photos/….webp",
+  "thumbnailUrl": null,
+  "title": "On set — Kochi",
+  "bytes": 182034,
+  "width": 2048,
+  "height": 1365,
+  "durationSeconds": null,
+  "createdAt": "2026-10-08T11:00:00.000Z"
+}
 ```
 
-The absolute URL is built from validated configuration, never from the request
-`Host` header. Filenames are generated randomly; nothing a client sent is ever
-used as a filesystem path, and the path is not under `/api`.
+At most 12 photos per profile: the 13th is `422 LIMIT_EXCEEDED`, decided before
+anything is uploaded and re-checked under a row lock afterwards.
+
+## POST /profile/portfolio/videos
+
+Bearer. As above with file field `video`: MP4, MOV or WebM, ≤ 100 MB. The format
+is identified by the file's signature (an `ftyp` box with a video brand, or a
+WebM header), so HEIC/AVIF photos and renamed files are `415`. Videos are
+stored as uploaded; Cloudinary reports their length and a still frame
+(`thumbnailUrl`). A reel longer than 3 minutes is deleted again and refused with
+`422`. At most 4 reels per profile.
+
+## DELETE /profile/portfolio/:id
+
+Bearer. Removes one of the caller's portfolio items and then its file. `204`.
+Another member's item, or an unknown id, is `404`.
+
+## Media storage
+
+Uploaded files are never stored in the database. Each request's file is
+written to a temporary directory, validated, uploaded to the media provider,
+and only then is its **link** saved; the temporary file is deleted when the
+request ends, whatever the outcome.
+
+| Setting                      | Effect                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------- |
+| `MEDIA_STORAGE=cloudinary`   | Default. Files go to Cloudinary under `CLOUDINARY_FOLDER` (`abhinay/<kind>/…`).           |
+| `MEDIA_STORAGE=local`        | Files are copied under `STORAGE_ROOT` and served from `/media/<kind>/…` (tests use this). |
+| Cloudinary credentials blank | Uploads answer `503 MEDIA_STORAGE_UNAVAILABLE`; production refuses to start.              |
+
+The response only ever carries delivery URLs — never storage keys or which
+provider holds a file. Photos uploaded before Cloudinary keep working from
+`/media/profile-photos/`. Local URLs are built from `PUBLIC_SERVER_URL`, never
+from the request `Host` header, and the temporary directory is never served.
 
 ---
 
 # Casting
 
-WBS 1.2.1 (casting role posting) and 1.2.2 (browse, search and apply).
-Producers and directors post casting roles; every signed-in user can browse and
-read them, and apply when their profession matches. Every casting endpoint
-requires `Authorization: Bearer <access token>`. Shortlists and moving an
-application's status are later increments.
+WBS 1.2.1 (casting role posting), 1.2.2 (browse, search and apply) and 1.2.3
+(shortlist folders). Producers and directors post casting roles; every signed-in
+user can browse and read them, and apply when their profession matches. Every
+casting endpoint requires `Authorization: Bearer <access token>`. Moving an
+application's status is WBS 1.3.
+
+A role may have an optional **application deadline** — the last calendar day,
+in `APP_TIME_ZONE` (default `Asia/Kolkata`), on which applications are
+accepted. Once it has passed, an `OPEN` role is no longer listed by
+`GET /casting` and refuses applications with `409 DEADLINE_PASSED`, but keeps
+its status: its author can still extend the deadline or close it, and anyone
+with the link can still read it.
 
 ## Lifecycle
 
@@ -424,6 +516,7 @@ A closed role is final: it cannot be reopened or edited.
 | Read a `DRAFT`                     | `404`                                 | `404`                                 | Yes    | `404` |
 | Create, list own (`/casting/mine`) | `403`                                 | Yes                                   | Yes    | `403` |
 | Edit, publish, close, delete       | `403`                                 | `404`                                 | Yes    | `403` |
+| Applicants, shortlist folders      | `403`                                 | `404`                                 | Yes    | `403` |
 | Apply to an `OPEN` role            | If the profession matches, else `403` | If the profession matches, else `403` | `403`  | `403` |
 
 Without a token every endpoint answers `401`. The role check runs before the
@@ -442,6 +535,8 @@ poster's role gets `404`, exactly as for an id that does not exist.
   "description": "Meera uncovers a coastal land scam while her newspaper is being sold.",
   "requirements": "Female, 25–32. Fluent in Malayalam and English.",
   "status": "OPEN",
+  "applicationDeadline": "2026-10-31",
+  "acceptingApplications": true,
   "publishedAt": "2026-10-05T09:30:00.000Z",
   "closedAt": null,
   "createdAt": "2026-10-05T09:12:00.000Z",
@@ -465,7 +560,13 @@ computed for the caller:
 - `isOwner` — whether the caller posted the role.
 - `myApplication` — the caller's own application to it, or `null`.
 - `applicationCount` — how many members have applied, revealed to the **author
-  only**; `null` for everyone else. Who applied is not part of this increment.
+  only**; `null` for everyone else. The author sees who applied through
+  [`GET /casting/:id/applications`](#get-castingidapplications).
+
+`applicationDeadline` is `YYYY-MM-DD` or `null` (no deadline).
+`acceptingApplications` is `true` exactly when the role is `OPEN` and its
+deadline, if any, has not passed — the one field a client needs to decide
+whether to offer "Apply".
 
 List endpoints return a **summary** of each role: the same fields without
 `description`, `requirements`, `updatedAt`, `isOwner`, `myApplication` and
@@ -483,12 +584,15 @@ Bearer, `PRODUCER` or `DIRECTOR`. Always creates a `DRAFT`.
   "requirements": "Female, 25–32. Fluent in Malayalam and English.",
   "compensation": "₹15,000 per shooting day",
   "location": "Kochi, Kerala",
-  "seekingRole": "ACTOR"
+  "seekingRole": "ACTOR",
+  "applicationDeadline": "2026-10-31"
 }
 ```
 
-`201 { "castingRole": { … } }`. Every field is required and trimmed.
-`seekingRole` is the profession being sought. `status`, `createdById`,
+`201 { "castingRole": { … } }`. Every text field is required and trimmed.
+`applicationDeadline` is optional (`null`, `""` or absent mean no deadline);
+when given it must be a real date from today to 365 days ahead, else `422` on
+that field. `seekingRole` is the profession being sought. `status`, `createdById`,
 `publishedAt` or any other unknown key fails with `422` rather than being
 ignored: status only changes through `PATCH /casting/:id/status`, and ownership
 always comes from the token.
@@ -498,16 +602,17 @@ Failures: `422 VALIDATION_FAILED`, `403 FORBIDDEN` (any other role, including
 
 ## GET /casting
 
-Bearer. Browse `OPEN` roles, newest first (`publishedAt` descending, `id` as the
-tie-break).
+Bearer. Browse `OPEN` roles whose deadline has not passed.
 
-| Query         | Rule                                                                                    |
-| ------------- | --------------------------------------------------------------------------------------- |
-| `q`           | ≤ 100 characters. Matches title, description, requirements and location, ignoring case. |
-| `seekingRole` | One of the six public roles.                                                            |
-| `location`    | ≤ 120 characters. Substring of the location, ignoring case.                             |
-| `page`        | ≥ 1, default 1. A page past the end returns an empty list.                              |
-| `pageSize`    | 1–50, default 20.                                                                       |
+| Query            | Rule                                                                                                  |
+| ---------------- | ----------------------------------------------------------------------------------------------------- |
+| `q`              | ≤ 100 characters. Matches title, description, requirements, location and compensation, ignoring case. |
+| `seekingRole`    | One of the six public roles.                                                                          |
+| `location`       | ≤ 120 characters. Substring of the location, ignoring case.                                           |
+| `deadlineBefore` | `YYYY-MM-DD`. Only roles with a deadline on or before this day ("closing soon").                      |
+| `sort`           | `newest` (default, `publishedAt` descending), `oldest`, or `deadline` (soonest first, none last).     |
+| `page`           | ≥ 1, default 1. A page past the end returns an empty list.                                            |
+| `pageSize`       | 1–50, default 20.                                                                                     |
 
 Empty values (`?location=`) mean "no filter". Unknown keys and repeated values
 fail with `422`. `%` and `_` in `q` and `location` are matched literally, not as
@@ -546,6 +651,10 @@ drafts cannot be discovered by probing.
 Bearer, `PRODUCER` or `DIRECTOR`, author only. Same body as create; replaces
 every editable field and leaves the status alone. `200` with the updated role.
 
+A deadline that has already passed may be sent back unchanged; only a _new_
+past date is refused. Moving the deadline later reopens an expired `OPEN` role
+to applications; sending `null` removes the deadline.
+
 Failures: `409 CASTING_ROLE_CLOSED`, `404 NOT_FOUND` (unknown, or not yours),
 `403 FORBIDDEN`, `422 VALIDATION_FAILED`.
 
@@ -557,13 +666,14 @@ Bearer, `PRODUCER` or `DIRECTOR`, author only.
 { "status": "OPEN" }
 ```
 
-| From     | To       | Result                          |
-| -------- | -------- | ------------------------------- |
-| `DRAFT`  | `OPEN`   | `200`, stamps `publishedAt`     |
-| `OPEN`   | `CLOSED` | `200`, stamps `closedAt`        |
-| any      | same     | `200`, no change (idempotent)   |
-| `DRAFT`  | `CLOSED` | `409 INVALID_STATUS_TRANSITION` |
-| `CLOSED` | `OPEN`   | `409 INVALID_STATUS_TRANSITION` |
+| From                     | To       | Result                                           |
+| ------------------------ | -------- | ------------------------------------------------ |
+| `DRAFT`                  | `OPEN`   | `200`, stamps `publishedAt`                      |
+| `OPEN`                   | `CLOSED` | `200`, stamps `closedAt`                         |
+| any                      | same     | `200`, no change (idempotent)                    |
+| `DRAFT`                  | `CLOSED` | `409 INVALID_STATUS_TRANSITION`                  |
+| `CLOSED`                 | `OPEN`   | `409 INVALID_STATUS_TRANSITION`                  |
+| `DRAFT`, deadline passed | `OPEN`   | `409 DEADLINE_PASSED` — set a new deadline first |
 
 `DRAFT` is not a valid target (`422`). The required source status is part of
 the database update, so when the same transition is requested concurrently it
@@ -613,6 +723,7 @@ The checks, in order:
 | The role does not exist, or is someone else's `DRAFT`   | `404 NOT_FOUND`             |
 | The caller is the role's author                         | `403 NOT_ELIGIBLE`          |
 | The role is not `OPEN`                                  | `409 CASTING_ROLE_NOT_OPEN` |
+| The role's application deadline has passed              | `409 DEADLINE_PASSED`       |
 | The caller's profession is not the role's `seekingRole` | `403 NOT_ELIGIBLE`          |
 | The caller has already applied                          | `409 ALREADY_APPLIED`       |
 
@@ -647,6 +758,85 @@ Bearer. The caller's own applications, most recent first.
 
 An application stays listed after its role closes; `castingRole.status` then
 reads `CLOSED`. Unknown query keys fail with `422`.
+
+---
+
+# Shortlists
+
+WBS 1.2.3 — the author of a casting role reviews its applicants and sorts them
+into named folders ("Callbacks", "Second round"). Every endpoint is Bearer,
+`PRODUCER` or `DIRECTOR` (`403` otherwise), and only for the role's author: a
+role, folder or application belonging to anyone else is `404`, exactly like an
+id that does not exist.
+
+Filing is organisation only: it does not change the application's `status`,
+does not notify the applicant, and the applicant cannot see folders. An
+application may sit in several folders. Folders keep working after a role is
+closed.
+
+## GET /casting/:id/applications
+
+The role's applicants, newest first. Query: `folderId` (only applicants filed
+in that folder; an unknown folder is `404`), `page`, `pageSize`.
+
+```json
+{
+  "applicants": [
+    {
+      "applicationId": "9a41…",
+      "status": "APPLIED",
+      "appliedAt": "2026-10-05T10:02:00.000Z",
+      "applicant": {
+        "profileId": "0f3c…",
+        "name": "Arjun Menon",
+        "role": "ACTOR",
+        "location": "Kochi",
+        "photoUrl": null
+      },
+      "folderIds": ["5b7e…"]
+    }
+  ],
+  "pagination": { "page": 1, "pageSize": 20, "total": 1, "totalPages": 1 }
+}
+```
+
+`applicant` carries public profile facts only — never email, phone or user id.
+
+## GET /casting/:id/shortlists
+
+`200 { "folders": [{ "id", "name", "applicantCount", "createdAt", "updatedAt" }] }`,
+in the order they were created.
+
+## POST /casting/:id/shortlists
+
+```json
+{ "name": "Callbacks" }
+```
+
+`201 { "folder": … }`. The name is trimmed and inner whitespace collapsed.
+Names are unique per role ignoring case and spacing: a duplicate is
+`409 FOLDER_NAME_TAKEN` with `fieldErrors.name`. The 21st folder is
+`422 LIMIT_EXCEEDED`. Any other key is `422`.
+
+## PATCH /casting/:id/shortlists/:folderId
+
+Rename. Same body and rules; renaming a folder to its own name in a different
+casing is allowed. `200 { "folder": … }`.
+
+## DELETE /casting/:id/shortlists/:folderId
+
+`204`. The folder's entries go with it; the applications themselves are
+untouched.
+
+## PUT /casting/:id/shortlists/:folderId/applications/:applicationId
+
+File an applicant. `201 { "applicant": … }` when newly filed, `200` when it was
+already in the folder (idempotent, also under concurrent requests). The
+application must belong to the same role — one from another role is `404`.
+
+## DELETE /casting/:id/shortlists/:folderId/applications/:applicationId
+
+Take an applicant out of a folder. `204`, or `404` when they were not in it.
 
 ---
 

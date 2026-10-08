@@ -6,10 +6,15 @@ import sharp from 'sharp';
 import app from '../../src/app';
 import { prisma } from '../../src/config/database';
 import { env } from '../../src/config/env';
-import { profilePhotoStorage } from '../../src/config/storage';
+import { localMediaStorage } from '../../src/config/storage';
 import { bearer, disconnect, registerUser, resetDatabase } from '../helpers';
 
-const storageDir = profilePhotoStorage.publicDirectory();
+const storageDir = localMediaStorage.directoryFor('profile-photos');
+
+/** Every temporary upload is gone once its request has been answered. */
+async function tempFiles(): Promise<string[]> {
+  return fs.readdir(env.UPLOAD_TMP_DIR).catch(() => []);
+}
 
 /** Build a real, decodable image of the requested format and size. */
 async function makeImage(
@@ -37,6 +42,7 @@ beforeEach(async () => {
   await resetDatabase();
   await fs.rm(storageDir, { recursive: true, force: true });
   await fs.mkdir(storageDir, { recursive: true });
+  await fs.rm(env.UPLOAD_TMP_DIR, { recursive: true, force: true });
 });
 
 afterAll(disconnect);
@@ -145,10 +151,11 @@ describe('POST /api/v1/profile/photo', () => {
       .attach('photo', truncated, { filename: 'broken.png', contentType: 'image/png' });
     expect(broken.status).toBe(415);
 
-    // Nothing reached the disk and no reference was stored.
+    // Nothing reached storage, no reference was stored, and no temporary file survived.
     expect(await storedFiles()).toHaveLength(0);
     const profile = await prisma.profile.findUniqueOrThrow({ where: { userId: user.userId } });
     expect(profile.profileImage).toBeNull();
+    await expect.poll(tempFiles).toHaveLength(0);
   });
 
   it('rejects an oversized upload', async () => {
@@ -162,6 +169,7 @@ describe('POST /api/v1/profile/photo', () => {
 
     expect(res.status).toBe(413);
     expect(await storedFiles()).toHaveLength(0);
+    await expect.poll(tempFiles).toHaveLength(0);
   });
 
   it('cannot be tricked into writing outside the storage root via the filename', async () => {

@@ -1,5 +1,6 @@
 import { CastingRoleStatus, Prisma, Role } from '@prisma/client';
 import { prisma } from '../config/database';
+import { isOnOrAfterToday } from '../utils/calendar';
 import { conflict, ErrorCode, notEligible, notFound } from '../utils/errors';
 import { ListMyApplicationsQuery } from '../validators/application.validator';
 import {
@@ -20,6 +21,7 @@ interface LockedCastingRole {
   status: CastingRoleStatus;
   created_by_id: string;
   seeking_role: Role;
+  application_deadline: Date | null;
 }
 
 /** "CAMERA_OPERATOR" → "camera operator", for messages. */
@@ -35,6 +37,7 @@ function professionName(role: Role): string {
  *         invisible to everyone but their author);
  *   403 — it is the applicant's own role;
  *   409 — it is not OPEN (a closed role takes no more applications);
+ *   409 — its application deadline has passed (judged in APP_TIME_ZONE);
  *   403 — the applicant's profession is not the one the role is casting for;
  *   409 — they have already applied (the unique pair decides, even under
  *         concurrent requests).
@@ -52,7 +55,7 @@ export async function applyToCastingRole(
   try {
     applicationId = await prisma.$transaction(async (tx) => {
       const [role] = await tx.$queryRaw<LockedCastingRole[]>`
-        SELECT status, created_by_id, seeking_role
+        SELECT status, created_by_id, seeking_role, application_deadline
         FROM casting_roles
         WHERE id = ${castingRoleId}
         FOR SHARE`;
@@ -70,6 +73,12 @@ export async function applyToCastingRole(
         throw conflict(
           ErrorCode.CASTING_ROLE_NOT_OPEN,
           'This casting role is closed to new applications'
+        );
+      }
+      if (!isOnOrAfterToday(role.application_deadline)) {
+        throw conflict(
+          ErrorCode.DEADLINE_PASSED,
+          'The application deadline for this casting role has passed'
         );
       }
       if (role.seeking_role !== applicant.role) {

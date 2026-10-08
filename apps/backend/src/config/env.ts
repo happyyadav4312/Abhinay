@@ -52,8 +52,42 @@ const envSchema = z
     // from the request Host header.
     PUBLIC_SERVER_URL: z.string().url().default('http://localhost:5000'),
 
-    // Filesystem root for uploaded media. Relative paths resolve from the repo root.
+    // Filesystem root for the LOCAL media driver and for in-flight uploads.
+    // Relative paths resolve from the repo root.
     STORAGE_ROOT: z.string().default('storage'),
+
+    // Where uploaded files are kept. `cloudinary` is the default; `local` writes
+    // under STORAGE_ROOT and exists for the test suites and offline work.
+    MEDIA_STORAGE: z.enum(['cloudinary', 'local']).default('cloudinary'),
+
+    // Cloudinary credentials. Blank values are allowed outside production so the
+    // API still starts; uploads then answer 503 until they are filled in.
+    CLOUDINARY_CLOUD_NAME: z.string().trim().default(''),
+    CLOUDINARY_API_KEY: z.string().trim().default(''),
+    CLOUDINARY_API_SECRET: z.string().trim().default(''),
+    // Root folder in the Cloudinary media library; each kind of file gets a subfolder.
+    CLOUDINARY_FOLDER: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9_-]+(\/[A-Za-z0-9_-]+)*$/, 'CLOUDINARY_FOLDER must be a plain folder path')
+      .default('abhinay'),
+
+    // The time zone that decides which calendar day it is, e.g. whether a
+    // casting deadline has passed. One zone for the whole platform.
+    APP_TIME_ZONE: z
+      .string()
+      .default('Asia/Kolkata')
+      .refine(
+        (zone) => {
+          try {
+            new Intl.DateTimeFormat('en-CA', { timeZone: zone });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { message: 'APP_TIME_ZONE must be an IANA time zone such as Asia/Kolkata' }
+      ),
 
     // Auth throttling. Generous by default; integration tests raise it further.
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(50),
@@ -70,6 +104,23 @@ const envSchema = z
         path: ['JWT_REFRESH_SECRET'],
         message: 'JWT_REFRESH_SECRET must be different from JWT_ACCESS_SECRET',
       });
+    }
+
+    // A production server that cannot store uploads should not start at all.
+    if (value.NODE_ENV === 'production' && value.MEDIA_STORAGE === 'cloudinary') {
+      for (const key of [
+        'CLOUDINARY_CLOUD_NAME',
+        'CLOUDINARY_API_KEY',
+        'CLOUDINARY_API_SECRET',
+      ] as const) {
+        if (!value[key]) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [key],
+            message: `${key} is required when MEDIA_STORAGE=cloudinary in production`,
+          });
+        }
+      }
     }
   });
 
@@ -88,6 +139,11 @@ export const env = {
   ...data,
   /** Absolute, normalised filesystem root that all uploads must stay inside. */
   STORAGE_ROOT_ABSOLUTE: path.resolve(REPO_ROOT, data.STORAGE_ROOT),
+  /**
+   * In-flight uploads: written here by multer, deleted when the request ends.
+   * Never served over HTTP.
+   */
+  UPLOAD_TMP_DIR: path.resolve(REPO_ROOT, data.STORAGE_ROOT, 'tmp-uploads'),
   /** PUBLIC_SERVER_URL without a trailing slash, for safe URL concatenation. */
   PUBLIC_SERVER_URL: data.PUBLIC_SERVER_URL.replace(/\/+$/, ''),
   FRONTEND_URL: data.FRONTEND_URL.replace(/\/+$/, ''),

@@ -4,10 +4,13 @@ PostgreSQL accessed through Prisma. Schema:
 `apps/backend/prisma/schema.prisma`. Migrations:
 `apps/backend/prisma/migrations/`.
 
-Scope is WBS 1.1 (accounts and professional profiles) and WBS 1.2 up to
-applying (casting role posting, discovery and applications). There are no
-shortlist, messaging or project tables yet; each arrives with its own work
-package.
+Scope is WBS 1.1 (accounts, professional profiles and their media) and WBS 1.2
+(casting role posting, discovery, applications and shortlist folders). There
+are no messaging or project tables yet; each arrives with its own work package.
+
+Uploaded files are **never** stored in the database. Each stored file is a
+(provider, key, URL) triple: where it lives (`CLOUDINARY` or `LOCAL`), the
+provider's identifier, and the delivery URL.
 
 ## Conventions
 
@@ -39,16 +42,47 @@ surfaces as a Prisma `P2002`, which the service translates into a clean `409`.
 
 ### profiles
 
-| Column                      | Type      | Constraints                               | Notes                                                   |
-| --------------------------- | --------- | ----------------------------------------- | ------------------------------------------------------- |
-| `id`                        | TEXT      | PK                                        | The id used by `GET /profile/:id`                       |
-| `user_id`                   | TEXT      | UNIQUE, FK → `users.id` ON DELETE CASCADE | Exactly one profile per user                            |
-| `bio`, `location`, `phone`  | TEXT      | NULL                                      | Optional; empty input is stored as NULL                 |
-| `profile_image`             | TEXT      | NULL                                      | Opaque storage key, not a URL and not a client filename |
-| `created_at` / `updated_at` | TIMESTAMP | NOT NULL                                  |                                                         |
+| Column                                        | Type                        | Constraints                               | Notes                                                  |
+| --------------------------------------------- | --------------------------- | ----------------------------------------- | ------------------------------------------------------ |
+| `id`                                          | TEXT                        | PK                                        | The id used by `GET /profile/:id`                      |
+| `user_id`                                     | TEXT                        | UNIQUE, FK → `users.id` ON DELETE CASCADE | Exactly one profile per user                           |
+| `bio`, `location`, `phone`                    | TEXT                        | NULL                                      | Optional; empty input is stored as NULL                |
+| `profile_image`                               | TEXT                        | NULL                                      | Photo's storage key, never a client filename           |
+| `profile_image_url`                           | TEXT                        | NULL                                      | Delivery URL; NULL for photos stored before Week 10    |
+| `profile_image_provider`                      | StorageProvider             | NULL                                      | Backfilled to `LOCAL` for photos stored before Week 10 |
+| `resume_key`, `resume_url`, `resume_provider` | TEXT, TEXT, StorageProvider | NULL                                      | The CV (a PDF) — key, delivery URL, provider           |
+| `resume_file_name`                            | TEXT                        | NULL                                      | Sanitised display name only                            |
+| `resume_bytes`                                | INTEGER                     | NULL                                      |                                                        |
+| `resume_uploaded_at`                          | TIMESTAMP                   | NULL                                      |                                                        |
+| `created_at` / `updated_at`                   | TIMESTAMP                   | NOT NULL                                  |                                                        |
 
 The profile row is created in the same transaction as the user, so a user
-without a profile is not a reachable state.
+without a profile is not a reachable state. Replacing a photo or CV locks this
+row (`SELECT … FOR UPDATE`), so concurrent replacements are applied in turn and
+each deletes exactly the file it replaced.
+
+### portfolio_items
+
+A portfolio photo or show reel (WBS 1.1.2.3). The row is written only after the
+file has been uploaded.
+
+| Column             | Type               | Constraints                          | Notes                               |
+| ------------------ | ------------------ | ------------------------------------ | ----------------------------------- |
+| `id`               | TEXT               | PK                                   | UUID                                |
+| `profile_id`       | TEXT               | FK → `profiles.id` ON DELETE CASCADE |                                     |
+| `kind`             | PortfolioMediaKind | NOT NULL                             | `PHOTO` or `VIDEO`                  |
+| `provider`         | StorageProvider    | NOT NULL                             |                                     |
+| `storage_key`      | TEXT               | NOT NULL                             | Never returned by the API           |
+| `url`              | TEXT               | NOT NULL                             | Delivery URL                        |
+| `thumbnail_url`    | TEXT               | NULL                                 | Still frame for a reel (Cloudinary) |
+| `title`            | TEXT               | NULL                                 | ≤ 100 characters                    |
+| `bytes`            | INTEGER            | NOT NULL                             |                                     |
+| `width`, `height`  | INTEGER            | NULL                                 |                                     |
+| `duration_seconds` | DOUBLE PRECISION   | NULL                                 | Reels; reported by Cloudinary       |
+| `created_at`       | TIMESTAMP          | NOT NULL                             |                                     |
+
+`INDEX(profile_id, kind, created_at)` serves the per-kind count (≤ 12 photos,
+≤ 4 reels, checked under the profile row lock) and the display order.
 
 ### skills
 
@@ -117,12 +151,18 @@ A casting call posted by a producer or director (WBS 1.2.1).
 | `location`                  | TEXT              | NOT NULL                                   | ≤ 120 characters                                     |
 | `seeking_role`              | Role              | NOT NULL                                   | The profession sought; the API never accepts `ADMIN` |
 | `status`                    | CastingRoleStatus | NOT NULL, default `DRAFT`                  |                                                      |
+| `application_deadline`      | DATE              | NULL                                       | Last day to apply, in `APP_TIME_ZONE`; NULL = none   |
 | `published_at`              | TIMESTAMP         | NULL                                       | Set on DRAFT → OPEN; the browse ordering             |
 | `closed_at`                 | TIMESTAMP         | NULL                                       | Set on OPEN → CLOSED                                 |
 | `created_at` / `updated_at` | TIMESTAMP         | NOT NULL                                   |                                                      |
 
 Indexes: `(created_by_id)` for "my postings", `(status, published_at)` for the
-newest-first browse list, `(status, seeking_role)` for the role filter.
+newest-first browse list, `(status, seeking_role)` for the role filter, and
+`(status, application_deadline)` for hiding expired roles and the deadline sort.
+
+`application_deadline` is a `date`, not a timestamp, for the same reason as
+experience dates. An OPEN role past its deadline keeps its status; browse and
+apply exclude it by comparing with today's date in the platform zone.
 
 Ownership and the lifecycle are enforced in the write itself, as with
 experiences and refresh tokens: an edit is `UPDATE … WHERE id = $1 AND
@@ -162,6 +202,39 @@ had already closed.
 
 Only drafts can be deleted, and a draft can never have applications, so the
 cascade from `casting_roles` only fires when a whole account is deleted.
+`INDEX(casting_role_id, created_at)` serves the author's applicant list.
+
+### shortlist_folders
+
+A named folder the author of a casting role sorts applicants into (WBS 1.2.3.1).
+
+| Column                      | Type      | Constraints                               | Notes                                     |
+| --------------------------- | --------- | ----------------------------------------- | ----------------------------------------- |
+| `id`                        | TEXT      | PK                                        | UUID                                      |
+| `casting_role_id`           | TEXT      | FK → `casting_roles.id` ON DELETE CASCADE | Ownership follows the role                |
+| `name`                      | TEXT      | NOT NULL                                  | Display name, ≤ 60 characters             |
+| `normalized_name`           | TEXT      | NOT NULL                                  | Trimmed, whitespace-collapsed, lowercased |
+| `created_at` / `updated_at` | TIMESTAMP | NOT NULL                                  |                                           |
+
+`UNIQUE(casting_role_id, normalized_name)` decides duplicate names, even under
+concurrent creates (`P2002` → `409`). At most 20 per role, counted while the role
+row is locked.
+
+### shortlist_entries
+
+One application filed in one folder (WBS 1.2.3.2).
+
+| Column           | Type      | Constraints                                   |
+| ---------------- | --------- | --------------------------------------------- |
+| `id`             | TEXT      | PK                                            |
+| `folder_id`      | TEXT      | FK → `shortlist_folders.id` ON DELETE CASCADE |
+| `application_id` | TEXT      | FK → `applications.id` ON DELETE CASCADE      |
+| `created_at`     | TIMESTAMP | NOT NULL                                      |
+
+`UNIQUE(folder_id, application_id)` makes filing idempotent; `INDEX(application_id)`
+lists an application's folders. That the application belongs to the folder's
+role is checked by the service. Deleting a folder removes its entries and
+nothing else; filing never touches `applications.status`.
 
 ## Enums
 
@@ -174,14 +247,19 @@ a casting role's `seeking_role`.
 **ApplicationStatus:** `APPLIED`, `SHORTLISTED`, `SELECTED`, `REJECTED` — the four
 statuses agreed in Lab 2. Every application starts as `APPLIED`.
 
+**StorageProvider:** `LOCAL`, `CLOUDINARY` — where a stored file lives.
+
+**PortfolioMediaKind:** `PHOTO`, `VIDEO`.
+
 ## Relationships
 
 ```
 users 1───1 profiles 1───* profile_skills *───1 skills
-  │              │
-  │              └───* experiences
+  │              ├───* experiences
+  │              └───* portfolio_items
   ├───* refresh_tokens
-  ├───* casting_roles 1───* applications
+  ├───* casting_roles 1───* applications 1───* shortlist_entries
+  │          └──────* shortlist_folders 1───* shortlist_entries
   └──────────────────────────* applications   (as applicant)
 ```
 
@@ -192,11 +270,16 @@ prisma/migrations/
 ├── 20260901063302_init/                                     users table + Role enum
 ├── 20260919094048_profiles_skills_experience_refresh_tokens/
 ├── 20261005090213_casting_marketplace/                      casting_roles + CastingRoleStatus
-└── 20261005095956_applications/                             applications + ApplicationStatus
+├── 20261005095956_applications/                             applications + ApplicationStatus
+└── 20261008105134_deadline_shortlists_portfolio_media/      deadline, shortlist tables,
+                                                             portfolio_items, CV and photo links
 ```
 
-The two casting migrations are purely additive — new enums, new tables and their
-indexes — so they apply cleanly to a populated database.
+The casting and media migrations are purely additive — new enums, new tables,
+new nullable columns and their indexes — so they apply cleanly to a populated
+database. The Week-10 migration also backfills
+`profile_image_provider = 'LOCAL'` for every existing photo, so photos uploaded
+before Cloudinary keep resolving and are deleted from the right place.
 
 The second migration adds `users.name` against a table that may already hold
 rows, so it runs in four steps: add the column nullable, backfill it from the

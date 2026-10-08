@@ -64,6 +64,32 @@ export interface Experience {
   endDate: string | null;
 }
 
+/** The member's CV — a link to the PDF in media storage. */
+export interface Resume {
+  url: string;
+  fileName: string;
+  bytes: number;
+  /** ISO timestamp. */
+  uploadedAt: string;
+}
+
+export type PortfolioMediaKind = 'PHOTO' | 'VIDEO';
+
+/** A portfolio photo or show reel. */
+export interface PortfolioItem {
+  id: string;
+  kind: PortfolioMediaKind;
+  url: string;
+  /** A still frame for a reel when the media provider makes one. */
+  thumbnailUrl: string | null;
+  title: string | null;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+  durationSeconds: number | null;
+  createdAt: string;
+}
+
 export interface PublicProfile {
   id: string;
   name: string;
@@ -73,6 +99,8 @@ export interface PublicProfile {
   photoUrl: string | null;
   skills: Skill[];
   experiences: Experience[];
+  resume: Resume | null;
+  portfolio: PortfolioItem[];
 }
 
 export interface OwnProfile extends PublicProfile {
@@ -125,6 +153,10 @@ export interface CastingRoleSummary {
   compensation: string;
   descriptionPreview: string;
   status: CastingRoleStatus;
+  /** Last day applications are accepted, `YYYY-MM-DD`, or null for no deadline. */
+  applicationDeadline: string | null;
+  /** OPEN and not past its deadline. */
+  acceptingApplications: boolean;
   /** ISO timestamps. */
   publishedAt: string | null;
   closedAt: string | null;
@@ -173,12 +205,12 @@ export interface Application extends MyApplication {
 
 /**
  * Mirrors the server's eligibility rule so the UI only offers "Apply" when it
- * can succeed: an OPEN role, not your own, casting for your profession, and
- * not already applied to. The server stays the authority.
+ * can succeed: an OPEN role still before its deadline, not your own, casting
+ * for your profession, and not already applied to. The server stays the authority.
  */
 export function canApplyTo(role: CastingRole, viewerRole: Role | null | undefined): boolean {
   return (
-    role.status === 'OPEN' &&
+    role.acceptingApplications &&
     !role.isOwner &&
     role.myApplication === null &&
     viewerRole !== null &&
@@ -195,4 +227,43 @@ export interface CastingRoleInput {
   compensation: string;
   location: string;
   seekingRole: PublicRole;
+  /** `YYYY-MM-DD`, or null for no deadline. */
+  applicationDeadline: string | null;
+}
+
+/** Browse orderings offered by GET /casting. */
+export const CASTING_SORTS = ['newest', 'oldest', 'deadline'] as const;
+export type CastingSort = (typeof CASTING_SORTS)[number];
+
+export const CASTING_SORT_LABELS: Record<CastingSort, string> = {
+  newest: 'Newest first',
+  oldest: 'Oldest first',
+  deadline: 'Closing soonest',
+};
+
+// ── Shortlists ──────────────────────────────────────────
+
+/** A folder the author files a role's applicants into. */
+export interface ShortlistFolder {
+  id: string;
+  name: string;
+  applicantCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** An applicant as the role's author sees them: public facts plus where they are filed. */
+export interface Applicant {
+  applicationId: string;
+  status: ApplicationStatus;
+  /** ISO timestamp. */
+  appliedAt: string;
+  applicant: {
+    profileId: string | null;
+    name: string;
+    role: Role;
+    location: string | null;
+    photoUrl: string | null;
+  };
+  folderIds: string[];
 }

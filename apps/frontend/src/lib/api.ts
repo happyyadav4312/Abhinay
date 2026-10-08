@@ -1,16 +1,21 @@
 import type {
+  Applicant,
   Application,
   ApplicationStatus,
   CastingRole,
   CastingRoleInput,
   CastingRoleStatus,
   CastingRoleSummary,
+  CastingSort,
   Experience,
   OwnProfile,
   Pagination,
+  PortfolioItem,
+  PortfolioMediaKind,
   PublicProfile,
   PublicRole,
   Role,
+  ShortlistFolder,
   Skill,
   User,
 } from '@/types';
@@ -300,6 +305,29 @@ export const profileApi = {
   },
 
   removePhoto: () => request<{ profile: OwnProfile }>('/profile/photo', { method: 'DELETE' }),
+
+  /** A PDF CV. Replaces any previous one. */
+  uploadResume: (file: File) => {
+    const formData = new FormData();
+    formData.append('resume', file);
+    return request<{ profile: OwnProfile }>('/profile/resume', { method: 'POST', formData });
+  },
+
+  removeResume: () => request<{ profile: OwnProfile }>('/profile/resume', { method: 'DELETE' }),
+
+  /** Portfolio photo or reel. The text field goes first so it is parsed before the file. */
+  addPortfolioItem: (kind: PortfolioMediaKind, file: File, title: string) => {
+    const formData = new FormData();
+    if (title.trim()) formData.append('title', title.trim());
+    formData.append(kind === 'PHOTO' ? 'photo' : 'video', file);
+    return request<{ item: PortfolioItem }>(
+      kind === 'PHOTO' ? '/profile/portfolio/photos' : '/profile/portfolio/videos',
+      { method: 'POST', formData }
+    );
+  },
+
+  deletePortfolioItem: (id: string) =>
+    request<void>(`/profile/portfolio/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };
 
 export const healthApi = {
@@ -324,6 +352,9 @@ export interface CastingListParams {
   q?: string;
   seekingRole?: PublicRole;
   location?: string;
+  /** `YYYY-MM-DD`: only roles whose deadline is on or before this day. */
+  deadlineBefore?: string;
+  sort?: CastingSort;
   page?: number;
   pageSize?: number;
 }
@@ -340,7 +371,7 @@ export interface CastingRolePage {
 }
 
 export const castingApi = {
-  /** Open roles only, newest first. */
+  /** Open roles whose deadline has not passed. */
   list: (params: CastingListParams = {}, signal?: AbortSignal) =>
     request<CastingRolePage>(`/casting${toQueryString(params)}`, { signal }),
 
@@ -392,4 +423,60 @@ export const applicationsApi = {
   /** The signed-in member's applications, most recent first. */
   mine: (params: ApplicationsMineParams = {}, signal?: AbortSignal) =>
     request<ApplicationPage>(`/applications/mine${toQueryString(params)}`, { signal }),
+};
+
+export interface ApplicantsParams {
+  folderId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ApplicantPage {
+  applicants: Applicant[];
+  pagination: Pagination;
+}
+
+/** The author's side of a role: its applicants and the folders they are filed in. */
+export const shortlistApi = {
+  applicants: (roleId: string, params: ApplicantsParams = {}, signal?: AbortSignal) =>
+    request<ApplicantPage>(
+      `/casting/${encodeURIComponent(roleId)}/applications${toQueryString(params)}`,
+      { signal }
+    ),
+
+  folders: (roleId: string, signal?: AbortSignal) =>
+    request<{ folders: ShortlistFolder[] }>(`/casting/${encodeURIComponent(roleId)}/shortlists`, {
+      signal,
+    }),
+
+  createFolder: (roleId: string, name: string) =>
+    request<{ folder: ShortlistFolder }>(`/casting/${encodeURIComponent(roleId)}/shortlists`, {
+      method: 'POST',
+      body: { name },
+    }),
+
+  renameFolder: (roleId: string, folderId: string, name: string) =>
+    request<{ folder: ShortlistFolder }>(
+      `/casting/${encodeURIComponent(roleId)}/shortlists/${encodeURIComponent(folderId)}`,
+      { method: 'PATCH', body: { name } }
+    ),
+
+  deleteFolder: (roleId: string, folderId: string) =>
+    request<void>(
+      `/casting/${encodeURIComponent(roleId)}/shortlists/${encodeURIComponent(folderId)}`,
+      { method: 'DELETE' }
+    ),
+
+  /** Idempotent: filing an applicant who is already in the folder succeeds. */
+  file: (roleId: string, folderId: string, applicationId: string) =>
+    request<{ applicant: Applicant }>(
+      `/casting/${encodeURIComponent(roleId)}/shortlists/${encodeURIComponent(folderId)}/applications/${encodeURIComponent(applicationId)}`,
+      { method: 'PUT' }
+    ),
+
+  unfile: (roleId: string, folderId: string, applicationId: string) =>
+    request<void>(
+      `/casting/${encodeURIComponent(roleId)}/shortlists/${encodeURIComponent(folderId)}/applications/${encodeURIComponent(applicationId)}`,
+      { method: 'DELETE' }
+    ),
 };

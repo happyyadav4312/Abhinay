@@ -72,6 +72,16 @@ const chronological = <T extends { startDate: Date; endDate: Date | null }>(
 export const createExperienceSchema = z.object(experienceShape).strict().superRefine(chronological);
 export const updateExperienceSchema = z.object(experienceShape).strict().superRefine(chronological);
 
+/**
+ * The text fields sent alongside a portfolio upload (multipart). Only an
+ * optional caption; anything else in the form is rejected.
+ */
+export const portfolioUploadFieldsSchema = z
+  .object({
+    title: optionalText(LIMITS.PORTFOLIO_TITLE_MAX, 'Title'),
+  })
+  .strict();
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type AddSkillInput = z.infer<typeof addSkillSchema>;
 export type CreateExperienceInput = z.infer<typeof createExperienceSchema>;

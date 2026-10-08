@@ -8,11 +8,12 @@ interface FieldProps {
   error?: string;
   hint?: string;
   children: ReactNode;
+  className?: string;
 }
 
-export function Field({ label, htmlFor, error, hint, children }: FieldProps) {
+export function Field({ label, htmlFor, error, hint, children, className }: FieldProps) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={cn('flex flex-col gap-1.5', className)}>
       <Label htmlFor={htmlFor} className={cn('text-zinc-200', error && 'text-red-500')}>
         {label}
       </Label>

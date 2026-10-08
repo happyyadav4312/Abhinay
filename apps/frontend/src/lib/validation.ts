@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PUBLIC_ROLES } from '@/types';
+import { CASTING_SORTS, PUBLIC_ROLES } from '@/types';
 
 /**
  * Client-side schemas. These mirror apps/backend/src/validators exactly — the
@@ -27,7 +27,40 @@ export const LIMITS = {
   CASTING_COMPENSATION_MAX: 200,
   CASTING_LOCATION_MAX: 120,
   CASTING_SEARCH_MAX: 100,
+  CASTING_DEADLINE_MAX_DAYS: 365,
+  SHORTLIST_FOLDER_NAME_MAX: 60,
+  SHORTLIST_FOLDERS_PER_ROLE_MAX: 20,
+  PORTFOLIO_TITLE_MAX: 100,
+  PORTFOLIO_PHOTOS_MAX: 12,
+  PORTFOLIO_VIDEOS_MAX: 4,
 } as const;
+
+/**
+ * Upload policies, mirroring apps/backend/src/services/media-validation.service.ts.
+ * Checked in the browser only so an obvious mistake fails before a long upload;
+ * the server decodes or signature-checks every file regardless.
+ */
+export const MEDIA_LIMITS = {
+  PROFILE_PHOTO: { maxBytes: 5 * 1024 * 1024, label: '5 MB', types: ['image/jpeg', 'image/png', 'image/webp'] },
+  PORTFOLIO_PHOTO: { maxBytes: 10 * 1024 * 1024, label: '10 MB', types: ['image/jpeg', 'image/png', 'image/webp'] },
+  RESUME: { maxBytes: 5 * 1024 * 1024, label: '5 MB', types: ['application/pdf'] },
+  REEL: { maxBytes: 100 * 1000 * 1000, label: '100 MB', types: ['video/mp4', 'video/quicktime', 'video/webm'], maxMinutes: 3 },
+} as const; // prettier-ignore
+
+/** Today's date in the browser's time zone, `YYYY-MM-DD`. The server judges by its own zone. */
+export function localDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** `YYYY-MM-DD` plus whole days. */
+export function addDaysTo(value: string, days: number): string {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
 
 const email = z
   .string()
@@ -134,15 +167,58 @@ const requiredText = (label: string, max: number, min = 1) =>
 const publicRole = (message: string) =>
   z.enum(PUBLIC_ROLES as unknown as [string, ...string[]], { errorMap: () => ({ message }) });
 
-/** Mirrors `castingRoleSchema` in apps/backend/src/validators/casting.validator.ts. */
-export const castingRoleFormSchema = z.object({
-  title: requiredText('Title', LIMITS.CASTING_TITLE_MAX, LIMITS.CASTING_TITLE_MIN),
-  seekingRole: publicRole('Choose the role you are casting for'),
-  location: requiredText('Location', LIMITS.CASTING_LOCATION_MAX),
-  compensation: requiredText('Compensation', LIMITS.CASTING_COMPENSATION_MAX),
-  description: requiredText('Description', LIMITS.CASTING_DESCRIPTION_MAX),
-  requirements: requiredText('Requirements', LIMITS.CASTING_REQUIREMENTS_MAX),
+/**
+ * Mirrors `castingRoleSchema` in apps/backend/src/validators/casting.validator.ts.
+ *
+ * The deadline is optional (empty = none). A *new* deadline must fall between
+ * today and a year ahead; `savedDeadline` is the role's stored value on an
+ * edit, which may stay as it is even after it has passed — the server applies
+ * the same rule.
+ */
+export function castingRoleFormSchema(savedDeadline: string | null = null) {
+  return z
+    .object({
+      title: requiredText('Title', LIMITS.CASTING_TITLE_MAX, LIMITS.CASTING_TITLE_MIN),
+      seekingRole: publicRole('Choose the role you are casting for'),
+      location: requiredText('Location', LIMITS.CASTING_LOCATION_MAX),
+      compensation: requiredText('Compensation', LIMITS.CASTING_COMPENSATION_MAX),
+      description: requiredText('Description', LIMITS.CASTING_DESCRIPTION_MAX),
+      requirements: requiredText('Requirements', LIMITS.CASTING_REQUIREMENTS_MAX),
+      applicationDeadline: z.union([calendarDate, z.literal('')]),
+    })
+    .superRefine((values, ctx) => {
+      const deadline = values.applicationDeadline;
+      if (!deadline || deadline === savedDeadline) return;
+      const today = localDateString();
+      if (deadline < today) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['applicationDeadline'],
+          message: 'The deadline cannot be in the past',
+        });
+      } else if (deadline > addDaysTo(today, LIMITS.CASTING_DEADLINE_MAX_DAYS)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['applicationDeadline'],
+          message: `The deadline must be within ${LIMITS.CASTING_DEADLINE_MAX_DAYS} days from today`,
+        });
+      }
+    });
+}
+
+/** Mirrors `shortlistFolderSchema` in apps/backend/src/validators/shortlist.validator.ts. */
+export const shortlistFolderFormSchema = z.object({
+  name: requiredText('Folder name', LIMITS.SHORTLIST_FOLDER_NAME_MAX),
 });
+
+/** An optional caption for a portfolio upload. */
+export const portfolioTitleSchema = z
+  .string()
+  .trim()
+  .max(
+    LIMITS.PORTFOLIO_TITLE_MAX,
+    `Title must not exceed ${LIMITS.PORTFOLIO_TITLE_MAX} characters`
+  );
 
 /** The browse filter bar. An empty value means "no filter". */
 export const castingSearchFormSchema = z.object({
@@ -161,6 +237,8 @@ export const castingSearchFormSchema = z.object({
       LIMITS.CASTING_LOCATION_MAX,
       `Location must not exceed ${LIMITS.CASTING_LOCATION_MAX} characters`
     ),
+  deadlineBefore: z.union([calendarDate, z.literal('')]),
+  sort: z.enum(CASTING_SORTS),
 });
 
 export type RegisterFormValues = z.input<typeof registerFormSchema>;
@@ -168,5 +246,6 @@ export type LoginFormValues = z.input<typeof loginFormSchema>;
 export type ProfileFormValues = z.input<typeof profileFormSchema>;
 export type SkillFormValues = z.input<typeof skillFormSchema>;
 export type ExperienceFormValues = z.input<typeof experienceFormSchema>;
-export type CastingRoleFormValues = z.input<typeof castingRoleFormSchema>;
+export type CastingRoleFormValues = z.input<ReturnType<typeof castingRoleFormSchema>>;
 export type CastingSearchFormValues = z.input<typeof castingSearchFormSchema>;
+export type ShortlistFolderFormValues = z.input<typeof shortlistFolderFormSchema>;

@@ -4,7 +4,13 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiError } from '@/lib/api';
-import { castingRoleFormSchema, LIMITS, type CastingRoleFormValues } from '@/lib/validation';
+import {
+  addDaysTo,
+  castingRoleFormSchema,
+  LIMITS,
+  localDateString,
+  type CastingRoleFormValues,
+} from '@/lib/validation';
 import { Alert, Button, Field, Input, NativeSelect, Textarea } from '@/components/ui';
 import {
   PUBLIC_ROLES,
@@ -21,6 +27,7 @@ export const BLANK_CASTING_ROLE: CastingRoleFormValues = {
   compensation: '',
   description: '',
   requirements: '',
+  applicationDeadline: '',
 };
 
 /** Seed the form from a saved role, for editing. */
@@ -32,6 +39,7 @@ export function castingRoleToFormValues(role: CastingRole): CastingRoleFormValue
     compensation: role.compensation,
     description: role.description,
     requirements: role.requirements,
+    applicationDeadline: role.applicationDeadline ?? '',
   };
 }
 
@@ -42,6 +50,7 @@ const FIELD_NAMES = [
   'compensation',
   'description',
   'requirements',
+  'applicationDeadline',
 ] as const;
 type FieldName = (typeof FIELD_NAMES)[number];
 
@@ -66,6 +75,8 @@ interface CastingRoleFormProps {
   onSubmit: (input: CastingRoleInput, intent: string) => Promise<void>;
   onCancel: () => void;
   ariaLabel: string;
+  /** The deadline already saved on the role, which may be kept even once it has passed. */
+  savedDeadline?: string | null;
 }
 
 /**
@@ -80,9 +91,11 @@ export function CastingRoleForm({
   onSubmit,
   onCancel,
   ariaLabel,
+  savedDeadline = null,
 }: CastingRoleFormProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingIntent, setPendingIntent] = useState<string | null>(null);
+  const today = localDateString();
 
   const {
     register,
@@ -90,7 +103,7 @@ export function CastingRoleForm({
     setError,
     formState: { errors },
   } = useForm<CastingRoleFormValues>({
-    resolver: zodResolver(castingRoleFormSchema),
+    resolver: zodResolver(castingRoleFormSchema(savedDeadline)),
     defaultValues,
   });
 
@@ -100,7 +113,14 @@ export function CastingRoleForm({
       setPendingIntent(intent);
 
       try {
-        await onSubmit({ ...values, seekingRole: values.seekingRole as PublicRole }, intent);
+        await onSubmit(
+          {
+            ...values,
+            seekingRole: values.seekingRole as PublicRole,
+            applicationDeadline: values.applicationDeadline || null,
+          },
+          intent
+        );
       } catch (caught) {
         if (caught instanceof ApiError) {
           let attached = false;
@@ -184,19 +204,38 @@ export function CastingRoleForm({
         </Field>
       </div>
 
-      <Field
-        label="Compensation"
-        htmlFor="casting-compensation"
-        error={errors.compensation?.message}
-        hint="Rate and terms, e.g. “₹15,000 per shooting day” or “Unpaid — credit and meals”."
-      >
-        <Input
-          id="casting-compensation"
-          aria-invalid={Boolean(errors.compensation)}
-          aria-describedby={describedBy('compensation', 'casting-compensation')}
-          {...register('compensation')}
-        />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label="Compensation"
+          htmlFor="casting-compensation"
+          error={errors.compensation?.message}
+          hint="Rate and terms, e.g. “₹15,000 per shooting day”."
+        >
+          <Input
+            id="casting-compensation"
+            aria-invalid={Boolean(errors.compensation)}
+            aria-describedby={describedBy('compensation', 'casting-compensation')}
+            {...register('compensation')}
+          />
+        </Field>
+
+        <Field
+          label="Application deadline (optional)"
+          htmlFor="casting-deadline"
+          error={errors.applicationDeadline?.message}
+          hint="Last day to apply. Leave empty for no deadline."
+        >
+          <Input
+            id="casting-deadline"
+            type="date"
+            min={savedDeadline && savedDeadline < today ? savedDeadline : today}
+            max={addDaysTo(today, LIMITS.CASTING_DEADLINE_MAX_DAYS)}
+            aria-invalid={Boolean(errors.applicationDeadline)}
+            aria-describedby={describedBy('applicationDeadline', 'casting-deadline')}
+            {...register('applicationDeadline')}
+          />
+        </Field>
+      </div>
 
       <Field
         label="Description"

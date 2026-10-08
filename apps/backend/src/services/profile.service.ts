@@ -1,6 +1,5 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../config/database';
-import { profilePhotoStorage } from '../config/storage';
 import { AppError, ErrorCode, notFound } from '../utils/errors';
 import { LIMITS } from '../validators/common';
 import {
@@ -21,7 +20,6 @@ import {
   toPublicProfile,
   toSkillDto,
 } from './dto';
-import { processProfilePhoto } from './image.service';
 
 /** Resolve the caller's profile id once; every mutation scopes to it. */
 async function requireOwnProfileId(userId: string): Promise<string> {
@@ -242,57 +240,4 @@ export async function deleteExperience(userId: string, experienceId: string): Pr
   }
 }
 
-// ── Photo ───────────────────────────────────────────────
-
-/**
- * Replace the profile photo.
- *
- * Order matters: validate and process first, write the new file second, update
- * the row third, delete the superseded file last. If the database write fails
- * the new file is cleaned up and the old reference survives intact, so a failed
- * upload can never blank out a working photo.
- */
-export async function setProfilePhoto(userId: string, upload: Buffer): Promise<OwnProfileDto> {
-  const profile = await prisma.profile.findUnique({
-    where: { userId },
-    select: { id: true, profileImage: true },
-  });
-
-  if (!profile) throw notFound('Profile not found');
-
-  const processed = await processProfilePhoto(upload);
-  const newKey = await profilePhotoStorage.save(processed.bytes, processed.extension);
-
-  try {
-    await prisma.profile.update({
-      where: { userId },
-      data: { profileImage: newKey },
-    });
-  } catch (error) {
-    await profilePhotoStorage.remove(newKey).catch(() => undefined);
-    throw error;
-  }
-
-  if (profile.profileImage && profile.profileImage !== newKey) {
-    // Best-effort: an orphaned old file is harmless, a broken reference is not.
-    await profilePhotoStorage.remove(profile.profileImage).catch(() => undefined);
-  }
-
-  return getOwnProfile(userId);
-}
-
-export async function removeProfilePhoto(userId: string): Promise<OwnProfileDto> {
-  const profile = await prisma.profile.findUnique({
-    where: { userId },
-    select: { profileImage: true },
-  });
-
-  if (!profile) throw notFound('Profile not found');
-
-  if (profile.profileImage) {
-    await prisma.profile.update({ where: { userId }, data: { profileImage: null } });
-    await profilePhotoStorage.remove(profile.profileImage).catch(() => undefined);
-  }
-
-  return getOwnProfile(userId);
-}
+// Photo, CV and portfolio uploads live in profile-media.service.ts.

@@ -6,7 +6,7 @@ import { ApiError, castingApi } from '@/lib/api';
 import { Alert, Button, Card, CardContent } from '@/components/ui';
 import { canApplyTo, ROLE_LABELS, type CastingRole, type MyApplication, type Role } from '@/types';
 import { ApplicationStatusBadge } from './ApplicationStatusBadge';
-import { formatDate } from './format';
+import { formatCalendarDate, formatDate } from './format';
 
 /**
  * The member's side of a role page: apply once, or see the application already
@@ -59,7 +59,8 @@ export function ApplyPanel({
     );
   }
 
-  if (role.status !== 'OPEN') return null;
+  // Closed, or past its deadline: the page already says so above.
+  if (role.status !== 'OPEN' || !role.acceptingApplications) return null;
 
   // UX only: the API independently refuses every other profession with 403.
   if (!canApplyTo(role, viewerRole)) {
@@ -86,7 +87,9 @@ export function ApplyPanel({
       // Someone else's state won: show the role as it really is now.
       if (
         caught instanceof ApiError &&
-        (caught.code === 'ALREADY_APPLIED' || caught.code === 'CASTING_ROLE_NOT_OPEN')
+        (caught.code === 'ALREADY_APPLIED' ||
+          caught.code === 'CASTING_ROLE_NOT_OPEN' ||
+          caught.code === 'DEADLINE_PASSED')
       ) {
         onStale();
         return;
@@ -107,6 +110,9 @@ export function ApplyPanel({
           Applying shares your public profile — photo, bio, skills and credits — with{' '}
           {role.postedBy.name}. You can apply to each role once, and an application can’t be
           withdrawn.
+          {role.applicationDeadline
+            ? ` Applications close at the end of ${formatCalendarDate(role.applicationDeadline)}.`
+            : ''}
         </p>
         {error ? <Alert>{error}</Alert> : null}
 

@@ -6,7 +6,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError, castingApi } from '@/lib/api';
 import { Avatar, ErrorState, LoadingState, MessageCard, RequireAuth } from '@/components/common';
-import { ApplyPanel, CastingStatusBadge, formatDate } from '@/components/casting';
+import {
+  ApplyPanel,
+  CastingStatusBadge,
+  formatCalendarDate,
+  formatDate,
+} from '@/components/casting';
 import { Alert, Button, buttonVariants, Card, CardContent } from '@/components/ui';
 import { ROLE_LABELS, type CastingPoster, type CastingRole } from '@/types';
 
@@ -135,13 +140,26 @@ function OwnerPanel({
           Manage this role
         </h2>
         <p className="text-sm text-zinc-300">{summary}</p>
-        {role.status !== 'DRAFT' && role.applicationCount !== null ? (
-          <p className="text-sm text-zinc-300">
-            {role.applicationCount === 1
-              ? '1 application so far.'
-              : `${role.applicationCount} applications so far.`}{' '}
-            <span className="text-zinc-500">Reviewing applicants arrives in the next release.</span>
+        {role.status === 'OPEN' && !role.acceptingApplications ? (
+          <p className="text-sm text-amber-400">
+            The application deadline has passed, so the role is no longer listed and takes no new
+            applications. Edit it to set a later deadline, or close it.
           </p>
+        ) : null}
+        {role.status !== 'DRAFT' && role.applicationCount !== null ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-zinc-300">
+              {role.applicationCount === 1
+                ? '1 application so far.'
+                : `${role.applicationCount} applications so far.`}
+            </p>
+            <Link
+              href={`/casting/${role.id}/applicants`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              Review applicants &amp; shortlists
+            </Link>
+          </div>
         ) : null}
         {error ? <Alert>{error}</Alert> : null}
 
@@ -285,6 +303,10 @@ function CastingRoleDetail({ id }: { id: string }) {
 
       {role.status === 'CLOSED' && !role.isOwner ? (
         <Alert tone="info">This casting call is closed and is no longer listed.</Alert>
+      ) : role.status === 'OPEN' && !role.acceptingApplications && !role.isOwner ? (
+        <Alert tone="info">
+          The deadline for this casting call has passed, so it no longer takes applications.
+        </Alert>
       ) : null}
 
       <Card>
@@ -294,6 +316,12 @@ function CastingRoleDetail({ id }: { id: string }) {
             <dd className="text-zinc-200">{role.location}</dd>
             <dt className="text-zinc-500">Compensation</dt>
             <dd className="text-zinc-200">{role.compensation}</dd>
+            <dt className="text-zinc-500">Apply by</dt>
+            <dd className="text-zinc-200">
+              {role.applicationDeadline
+                ? formatCalendarDate(role.applicationDeadline)
+                : 'No deadline'}
+            </dd>
             <dt className="text-zinc-500">Posted</dt>
             <dd className="text-zinc-200">
               {role.publishedAt ? formatDate(role.publishedAt) : 'Not published yet'}

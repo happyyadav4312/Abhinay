@@ -3,6 +3,7 @@ import request from 'supertest';
 import { Role } from '@prisma/client';
 import { prisma } from '../src/config/database';
 import { CLIENT_HEADER, CLIENT_HEADER_VALUE } from '../src/middleware/origin.middleware';
+import { addDays, today } from '../src/utils/calendar';
 
 export const CLIENT_HEADERS = { [CLIENT_HEADER]: CLIENT_HEADER_VALUE };
 export const VALID_PASSWORD = 'correct horse battery staple';
@@ -14,8 +15,13 @@ export const VALID_PASSWORD = 'correct horse battery staple';
  */
 export async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "applications", "casting_roles", "refresh_tokens", "profile_skills", "experiences", "profiles", "skills", "users" RESTART IDENTITY CASCADE'
+    'TRUNCATE TABLE "shortlist_entries", "shortlist_folders", "applications", "casting_roles", "portfolio_items", "refresh_tokens", "profile_skills", "experiences", "profiles", "skills", "users" RESTART IDENTITY CASCADE'
   );
+}
+
+/** A calendar date `offsetDays` from today in the platform time zone, as `YYYY-MM-DD`. */
+export function dateFromToday(offsetDays: number): string {
+  return addDays(today(), offsetDays).toISOString().slice(0, 10);
 }
 
 export async function disconnect(): Promise<void> {
@@ -99,6 +105,7 @@ export const CASTING_ROLE_INPUT = {
   compensation: '₹15,000 per shooting day',
   location: 'Kochi, Kerala',
   seekingRole: Role.ACTOR as Role,
+  applicationDeadline: null as string | null,
 };
 
 export type CastingRoleInputBody = typeof CASTING_ROLE_INPUT;

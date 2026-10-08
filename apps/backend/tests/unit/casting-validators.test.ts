@@ -107,11 +107,37 @@ describe('casting status change', () => {
   });
 });
 
+describe('application deadline', () => {
+  it('is optional: absent, null and blank all mean "no deadline"', () => {
+    expect(castingRoleSchema.parse(valid).applicationDeadline).toBeNull();
+    expect(
+      castingRoleSchema.parse({ ...valid, applicationDeadline: null }).applicationDeadline
+    ).toBeNull();
+    expect(
+      castingRoleSchema.parse({ ...valid, applicationDeadline: '' }).applicationDeadline
+    ).toBeNull();
+  });
+
+  it('parses a calendar date to UTC midnight', () => {
+    const parsed = castingRoleSchema.parse({ ...valid, applicationDeadline: '2026-12-31' });
+    expect(parsed.applicationDeadline?.toISOString()).toBe('2026-12-31T00:00:00.000Z');
+  });
+
+  it('rejects impossible dates, other formats and non-strings', () => {
+    for (const bad of ['2026-02-30', '31-12-2026', '2026-12-31T10:00:00Z', 'tomorrow', 20261231]) {
+      expect(castingRoleSchema.safeParse({ ...valid, applicationDeadline: bad }).success).toBe(
+        false
+      );
+    }
+  });
+});
+
 describe('browse query', () => {
-  it('defaults paging and coerces query strings to numbers', () => {
+  it('defaults paging and sort, and coerces query strings to numbers', () => {
     expect(listCastingQuerySchema.parse({})).toEqual({
       page: 1,
       pageSize: LIMITS.PAGE_SIZE_DEFAULT,
+      sort: 'newest',
     });
     expect(listCastingQuerySchema.parse({ page: '3', pageSize: '10' })).toMatchObject({
       page: 3,
@@ -121,8 +147,26 @@ describe('browse query', () => {
 
   it('treats cleared filter inputs as no filter', () => {
     expect(
-      listCastingQuerySchema.parse({ q: '  ', seekingRole: '', location: '', page: '' })
-    ).toEqual({ page: 1, pageSize: LIMITS.PAGE_SIZE_DEFAULT });
+      listCastingQuerySchema.parse({
+        q: '  ',
+        seekingRole: '',
+        location: '',
+        deadlineBefore: '',
+        sort: '',
+        page: '',
+      })
+    ).toEqual({ page: 1, pageSize: LIMITS.PAGE_SIZE_DEFAULT, sort: 'newest' });
+  });
+
+  it('accepts the three sorts and a deadline filter', () => {
+    for (const sort of ['newest', 'oldest', 'deadline']) {
+      expect(listCastingQuerySchema.parse({ sort }).sort).toBe(sort);
+    }
+    expect(
+      listCastingQuerySchema.parse({ deadlineBefore: '2026-11-01' }).deadlineBefore?.toISOString()
+    ).toBe('2026-11-01T00:00:00.000Z');
+    expect(listCastingQuerySchema.safeParse({ sort: 'popular' }).success).toBe(false);
+    expect(listCastingQuerySchema.safeParse({ deadlineBefore: '2026-13-01' }).success).toBe(false);
   });
 
   it('trims search text and accepts a public role filter', () => {
@@ -137,7 +181,7 @@ describe('browse query', () => {
     expect(
       listCastingQuerySchema.safeParse({ pageSize: String(LIMITS.PAGE_SIZE_MAX + 1) }).success
     ).toBe(false);
-    expect(listCastingQuerySchema.safeParse({ sort: 'oldest' }).success).toBe(false);
+    expect(listCastingQuerySchema.safeParse({ status: 'DRAFT' }).success).toBe(false);
     expect(listCastingQuerySchema.safeParse({ q: ['a', 'b'] }).success).toBe(false);
     expect(listCastingQuerySchema.safeParse({ seekingRole: Role.ADMIN }).success).toBe(false);
     expect(

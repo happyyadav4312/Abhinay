@@ -10,6 +10,15 @@ import {
   listMyCastingRolesController,
   updateCastingRoleController,
 } from '../controllers/casting.controller';
+import {
+  createFolderController,
+  deleteFolderController,
+  fileApplicantController,
+  listApplicantsController,
+  listFoldersController,
+  renameFolderController,
+  unfileApplicantController,
+} from '../controllers/shortlist.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { requireTrustedOrigin } from '../middleware/origin.middleware';
 import { requireRole } from '../middleware/role.middleware';
@@ -79,6 +88,57 @@ router.post(
   requireTrustedOrigin,
   asyncHandler(authenticate),
   asyncHandler(applyToCastingRoleController)
+);
+
+// ── Applicants and shortlist folders (the role's author) ──
+// The poster gate answers 403 for every other profession; the service answers
+// 404 for a role, folder or application the caller does not own.
+router.get(
+  '/:id/applications',
+  asyncHandler(authenticate),
+  canPostCasting,
+  asyncHandler(listApplicantsController)
+);
+router.get(
+  '/:id/shortlists',
+  asyncHandler(authenticate),
+  canPostCasting,
+  asyncHandler(listFoldersController)
+);
+router.post(
+  '/:id/shortlists',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  canPostCasting,
+  asyncHandler(createFolderController)
+);
+router.patch(
+  '/:id/shortlists/:folderId',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  canPostCasting,
+  asyncHandler(renameFolderController)
+);
+router.delete(
+  '/:id/shortlists/:folderId',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  canPostCasting,
+  asyncHandler(deleteFolderController)
+);
+router.put(
+  '/:id/shortlists/:folderId/applications/:applicationId',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  canPostCasting,
+  asyncHandler(fileApplicantController)
+);
+router.delete(
+  '/:id/shortlists/:folderId/applications/:applicationId',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  canPostCasting,
+  asyncHandler(unfileApplicantController)
 );
 
 export default router;

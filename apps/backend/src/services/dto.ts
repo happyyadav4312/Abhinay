@@ -2,6 +2,8 @@ import {
   ApplicationStatus,
   CastingRoleStatus,
   Experience,
+  PortfolioItem,
+  PortfolioMediaKind,
   Prisma,
   ProfileSkill,
   Role,
@@ -10,6 +12,7 @@ import {
 } from '@prisma/client';
 import { env } from '../config/env';
 import { PUBLIC_MEDIA_PATH } from '../config/storage';
+import { isOnOrAfterToday } from '../utils/calendar';
 import { toCalendarDateString } from '../validators/common';
 
 /**
@@ -43,6 +46,29 @@ export interface ExperienceDto {
   endDate: string | null;
 }
 
+/** The member's CV. The file is in the storage provider; this is only its link. */
+export interface ResumeDto {
+  url: string;
+  fileName: string;
+  bytes: number;
+  uploadedAt: string;
+}
+
+/** A portfolio photo or show reel. */
+export interface PortfolioItemDto {
+  id: string;
+  kind: PortfolioMediaKind;
+  url: string;
+  /** A still frame for a reel, when the provider makes one; otherwise null. */
+  thumbnailUrl: string | null;
+  title: string | null;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+  durationSeconds: number | null;
+  createdAt: string;
+}
+
 export interface PublicProfileDto {
   id: string;
   name: string;
@@ -52,6 +78,8 @@ export interface PublicProfileDto {
   photoUrl: string | null;
   skills: SkillDto[];
   experiences: ExperienceDto[];
+  resume: ResumeDto | null;
+  portfolio: PortfolioItemDto[];
 }
 
 export interface OwnProfileDto extends PublicProfileDto {
@@ -73,17 +101,39 @@ export const profileInclude = {
     // Most recent first; `id` breaks ties so ordering and tests are stable.
     orderBy: [{ startDate: 'desc' }, { id: 'asc' }],
   },
+  portfolio: {
+    // In the order they were added, so a new upload appears at the end.
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  },
 } satisfies Prisma.ProfileInclude;
 
 type ProfileWithRelations = Prisma.ProfileGetPayload<{ include: typeof profileInclude }>;
 
 /**
- * Absolute media URL built from validated configuration — never from the
- * request Host header, which an attacker controls.
+ * Absolute URL of a photo kept by the LOCAL driver, built from validated
+ * configuration — never from the request Host header, which an attacker controls.
  */
 export function toPhotoUrl(profileImage: string | null): string | null {
   if (!profileImage) return null;
   return `${env.PUBLIC_SERVER_URL}${PUBLIC_MEDIA_PATH}/${profileImage}`;
+}
+
+/** The columns every photo projection needs. */
+export const profilePhotoSelect = {
+  profileImage: true,
+  profileImageUrl: true,
+} satisfies Prisma.ProfileSelect;
+
+/**
+ * A profile's photo URL. Uploads store their delivery URL (Cloudinary's secure
+ * URL, or the local media URL); photos from before that column existed have a
+ * key only and are rebuilt as local media URLs.
+ */
+export function photoUrlOf(
+  profile: { profileImage: string | null; profileImageUrl: string | null } | null | undefined
+): string | null {
+  if (!profile?.profileImage) return null;
+  return profile.profileImageUrl ?? toPhotoUrl(profile.profileImage);
 }
 
 export function toSafeUser(
@@ -113,9 +163,35 @@ export function toExperienceDto(experience: Experience): ExperienceDto {
   };
 }
 
+export function toPortfolioItem(item: PortfolioItem): PortfolioItemDto {
+  return {
+    id: item.id,
+    kind: item.kind,
+    url: item.url,
+    thumbnailUrl: item.thumbnailUrl,
+    title: item.title,
+    bytes: item.bytes,
+    width: item.width,
+    height: item.height,
+    durationSeconds: item.durationSeconds,
+    createdAt: item.createdAt.toISOString(),
+  };
+}
+
+function toResume(profile: ProfileWithRelations): ResumeDto | null {
+  if (!profile.resumeUrl || !profile.resumeUploadedAt) return null;
+  return {
+    url: profile.resumeUrl,
+    fileName: profile.resumeFileName ?? 'resume.pdf',
+    bytes: profile.resumeBytes ?? 0,
+    uploadedAt: profile.resumeUploadedAt.toISOString(),
+  };
+}
+
 /**
  * The projection served to anyone, logged in or not.
- * Email, phone, userId and every timestamp are intentionally excluded.
+ * Email, phone, userId and every timestamp are intentionally excluded, as are
+ * storage keys and providers: only delivery URLs leave the server.
  */
 export function toPublicProfile(profile: ProfileWithRelations): PublicProfileDto {
   return {
@@ -124,9 +200,11 @@ export function toPublicProfile(profile: ProfileWithRelations): PublicProfileDto
     role: profile.user.role,
     bio: profile.bio,
     location: profile.location,
-    photoUrl: toPhotoUrl(profile.profileImage),
+    photoUrl: photoUrlOf(profile),
     skills: profile.skills.map(toSkillDto),
     experiences: profile.experiences.map(toExperienceDto),
+    resume: toResume(profile),
+    portfolio: profile.portfolio.map(toPortfolioItem),
   };
 }
 
@@ -176,6 +254,10 @@ export interface CastingRoleSummaryDto {
   compensation: string;
   descriptionPreview: string;
   status: CastingRoleStatus;
+  /** Last day applications are accepted, `YYYY-MM-DD`, or null for no deadline. */
+  applicationDeadline: string | null;
+  /** OPEN and not past its deadline — the single answer to "can anyone apply now?". */
+  acceptingApplications: boolean;
   publishedAt: string | null;
   closedAt: string | null;
   createdAt: string;
@@ -207,7 +289,7 @@ export const castingRoleInclude = {
     select: {
       name: true,
       role: true,
-      profile: { select: { id: true, profileImage: true } },
+      profile: { select: { id: true, ...profilePhotoSelect } },
     },
   },
 } satisfies Prisma.CastingRoleInclude;
@@ -248,12 +330,19 @@ function previewOf(text: string): string {
     .trimEnd()}…`;
 }
 
+function isAcceptingApplications(role: {
+  status: CastingRoleStatus;
+  applicationDeadline: Date | null;
+}): boolean {
+  return role.status === CastingRoleStatus.OPEN && isOnOrAfterToday(role.applicationDeadline);
+}
+
 function toCastingPoster(role: CastingRoleWithPoster): CastingPosterDto {
   return {
     profileId: role.createdBy.profile?.id ?? null,
     name: role.createdBy.name,
     role: role.createdBy.role,
-    photoUrl: toPhotoUrl(role.createdBy.profile?.profileImage ?? null),
+    photoUrl: photoUrlOf(role.createdBy.profile),
   };
 }
 
@@ -266,6 +355,10 @@ export function toCastingRoleSummary(role: CastingRoleWithPoster): CastingRoleSu
     compensation: role.compensation,
     descriptionPreview: previewOf(role.description),
     status: role.status,
+    applicationDeadline: role.applicationDeadline
+      ? toCalendarDateString(role.applicationDeadline)
+      : null,
+    acceptingApplications: isAcceptingApplications(role),
     publishedAt: role.publishedAt?.toISOString() ?? null,
     closedAt: role.closedAt?.toISOString() ?? null,
     createdAt: role.createdAt.toISOString(),
@@ -286,6 +379,10 @@ export function toCastingRole(role: CastingRoleWithViewer, viewerId: string): Ca
     description: role.description,
     requirements: role.requirements,
     status: role.status,
+    applicationDeadline: role.applicationDeadline
+      ? toCalendarDateString(role.applicationDeadline)
+      : null,
+    acceptingApplications: isAcceptingApplications(role),
     publishedAt: role.publishedAt?.toISOString() ?? null,
     closedAt: role.closedAt?.toISOString() ?? null,
     createdAt: role.createdAt.toISOString(),
@@ -320,5 +417,86 @@ export function toApplication(application: ApplicationWithRole): ApplicationDto 
     createdAt: application.createdAt.toISOString(),
     updatedAt: application.updatedAt.toISOString(),
     castingRole: toCastingRoleSummary(application.castingRole),
+  };
+}
+
+// ── Shortlists ──────────────────────────────────────────
+
+export interface ShortlistFolderDto {
+  id: string;
+  name: string;
+  /** How many applications are filed in this folder. */
+  applicantCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const shortlistFolderInclude = {
+  _count: { select: { entries: true } },
+} satisfies Prisma.ShortlistFolderInclude;
+
+type FolderWithCount = Prisma.ShortlistFolderGetPayload<{
+  include: typeof shortlistFolderInclude;
+}>;
+
+export function toShortlistFolder(folder: FolderWithCount): ShortlistFolderDto {
+  return {
+    id: folder.id,
+    name: folder.name,
+    applicantCount: folder._count.entries,
+    createdAt: folder.createdAt.toISOString(),
+    updatedAt: folder.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * An applicant as the role's author sees them: the same public facts as a
+ * public profile card (never email, phone or user id), plus where the author
+ * has filed them.
+ */
+export interface ApplicantDto {
+  applicationId: string;
+  status: ApplicationStatus;
+  appliedAt: string;
+  applicant: {
+    profileId: string | null;
+    name: string;
+    role: Role;
+    location: string | null;
+    photoUrl: string | null;
+  };
+  /** The author's folders this application is filed in. */
+  folderIds: string[];
+}
+
+export const applicantInclude = {
+  applicant: {
+    select: {
+      name: true,
+      role: true,
+      profile: { select: { id: true, location: true, ...profilePhotoSelect } },
+    },
+  },
+  shortlistEntries: { select: { folderId: true }, orderBy: { createdAt: 'asc' } },
+} satisfies Prisma.ApplicationInclude;
+
+type ApplicationWithApplicant = Prisma.ApplicationGetPayload<{
+  include: typeof applicantInclude;
+}>;
+
+export function toApplicant(application: ApplicationWithApplicant): ApplicantDto {
+  const { applicant } = application;
+  return {
+    applicationId: application.id,
+    status: application.status,
+    appliedAt: application.createdAt.toISOString(),
+    applicant: {
+      profileId: applicant.profile?.id ?? null,
+      name: applicant.name,
+      role: applicant.role,
+      location: applicant.profile?.location ?? null,
+      photoUrl: photoUrlOf(applicant.profile),
+    },
+    folderIds: application.shortlistEntries.map((entry) => entry.folderId),
   };
 }

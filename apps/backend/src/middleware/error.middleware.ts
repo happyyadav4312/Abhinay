@@ -44,7 +44,29 @@ export function errorHandler(err: unknown, req: Request, res: Response, next: Ne
       sendError(res, 'Uploaded file is too large', 413, ErrorCode.PAYLOAD_TOO_LARGE);
       return;
     }
+    // The file filter rejects a disallowed type, a wrong field name or a second file this way.
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      sendError(
+        res,
+        'This file type is not accepted here, or the file was sent in the wrong field',
+        400,
+        ErrorCode.BAD_REQUEST
+      );
+      return;
+    }
     sendError(res, 'Invalid file upload', 400, ErrorCode.BAD_REQUEST);
+    return;
+  }
+
+  // A client that disconnects mid-upload; nobody is left to answer, and the
+  // temporary file has already been removed by the upload middleware.
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    ((err as { code?: string }).code === 'ECONNABORTED' ||
+      (err as { message?: string }).message === 'Request aborted')
+  ) {
+    sendError(res, 'Upload was interrupted', 400, ErrorCode.BAD_REQUEST);
     return;
   }
 

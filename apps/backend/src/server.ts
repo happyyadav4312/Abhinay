@@ -2,9 +2,10 @@ import type { Server } from 'http';
 import app from './app';
 import { env } from './config/env';
 import { prisma } from './config/database';
-import { ensureStorageReady } from './config/storage';
+import { ensureStorageReady, mediaStorage, sweepStaleUploads } from './config/storage';
 
 let server: Server | undefined;
+let sweepTimer: NodeJS.Timeout | undefined;
 let shuttingDown = false;
 
 async function start(): Promise<void> {
@@ -26,6 +27,18 @@ async function start(): Promise<void> {
 
   await ensureStorageReady();
 
+  // Temporary uploads a crash left behind; each request removes its own.
+  await sweepStaleUploads().catch(() => 0);
+  sweepTimer = setInterval(() => void sweepStaleUploads().catch(() => 0), 60 * 60 * 1000);
+  sweepTimer.unref();
+
+  if (env.MEDIA_STORAGE === 'cloudinary' && !mediaStorage.isAvailable()) {
+    console.warn(
+      '  Media uploads are disabled: set CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET in .env.\n' +
+        '  Upload endpoints answer 503 until then.'
+    );
+  }
+
   server = app.listen(env.PORT, () => {
     console.log(
       [
@@ -35,6 +48,7 @@ async function start(): Promise<void> {
         `  Environment : ${env.NODE_ENV}`,
         `  Port        : ${env.PORT}`,
         `  Client      : ${env.FRONTEND_URL}`,
+        `  Media       : ${env.MEDIA_STORAGE}${mediaStorage.isAvailable() ? '' : ' (not configured)'}`,
         `  Health      : ${env.PUBLIC_SERVER_URL}/api/v1/health`,
         '  ─────────────────────────────',
         '',
@@ -48,6 +62,7 @@ async function shutdown(signal: string): Promise<void> {
   shuttingDown = true;
 
   console.log(`\n${signal} received, shutting down...`);
+  if (sweepTimer) clearInterval(sweepTimer);
 
   if (server) {
     await new Promise<void>((resolve) => server?.close(() => resolve()));
