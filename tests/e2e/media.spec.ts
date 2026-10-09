@@ -65,15 +65,30 @@ test.describe('Profile media', () => {
       mimeType: 'image/png',
       buffer: PNG,
     });
-    await page.getByLabel('Caption (optional)').fill('On set — Kochi');
+    await page.getByLabel('Caption (optional)', { exact: true }).fill('On set — Kochi');
     await page.getByRole('button', { name: 'Add to portfolio' }).click();
     await expect(page.getByRole('img', { name: 'On set — Kochi' })).toBeVisible();
     await expect(page.getByText('(1 of 12)')).toBeVisible();
 
-    // ── Public profile shows both ──
+    // ── Instagram reel link: a bad link is refused, a real one is canonicalised ──
+    await page.getByLabel('Instagram reel link').fill('https://www.youtube.com/watch?v=x');
+    await page.getByRole('button', { name: 'Add Instagram reel' }).click();
+    await expect(page.getByText(/Paste a link to an Instagram reel/)).toBeVisible();
+
+    await page
+      .getByLabel('Instagram reel link')
+      .fill('https://instagram.com/reel/CZ9VsSUBomM/?igsh=tracking');
+    await page.getByLabel('Reel caption (optional)').fill('Monologue');
+    await page.getByRole('button', { name: 'Add Instagram reel' }).click();
+    const reelCard = page.getByRole('link', { name: /Watch “Monologue” on Instagram/ });
+    await expect(reelCard).toHaveAttribute('href', 'https://www.instagram.com/reel/CZ9VsSUBomM/');
+    await expect(reelCard).toHaveAttribute('target', '_blank');
+
+    // ── Public profile shows all three ──
     await page.goto('/profile');
     await expect(page.getByRole('link', { name: 'Meera CV.pdf' })).toBeVisible();
     await expect(page.getByRole('img', { name: 'On set — Kochi' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Watch “Monologue” on Instagram/ })).toBeVisible();
 
     // ── Remove both ──
     await page.goto('/profile/edit');

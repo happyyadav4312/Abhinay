@@ -49,6 +49,15 @@ unless noted.
 | UI: CV and portfolio sections on edit; shown on the public profile         | Done   | `apps/frontend/src/app/profile/edit/{ResumeSection,PortfolioSection}.tsx`, `ProfileView.tsx` | `tests/e2e/media.spec.ts`                                                |
 | `.env` placeholders for the Cloudinary key and secret                      | Done   | `.env.example`, `.env.test.example` (and the local, untracked `.env` / `.env.test`)          | —                                                                        |
 
+## Instagram reel links and demo seed (2026-10-09)
+
+| Deliverable                                                          | Status | Files                                                                                                 | Evidence                                                                         |
+| -------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `EXTERNAL` provider, `LINK` portfolio kind                           | Done   | `schema.prisma`, `migrations/20261009104942_external_links/`                                          | Additive enum values                                                             |
+| `POST /profile/portfolio/links` — validated, canonical, ≤ 6, no dups | Done   | `src/validators/profile.validator.ts`, `src/services/profile-media.service.ts`                        | `tests/unit/portfolio-link-validator.test.ts`, `tests/integration/media.test.ts` |
+| Link card (opens Instagram), add form on Edit profile                | Done   | `apps/frontend/src/components/common/PortfolioMedia.tsx`, `src/app/profile/edit/PortfolioSection.tsx` | `tests/e2e/media.spec.ts`                                                        |
+| Demo seed: 17 members, 10 roles, 19 applications, 4 folders          | Done   | `apps/backend/prisma/seed-demo.ts`, `npm run db:seed:demo`                                            | `tests/integration/seed-demo.test.ts`; run against `abhinay`; screenshots        |
+
 ## Executed checks
 
 Run on 2026-10-08.

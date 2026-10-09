@@ -1,8 +1,16 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { ApiError, profileApi } from '@/lib/api';
-import { LIMITS, MEDIA_LIMITS, portfolioTitleSchema } from '@/lib/validation';
+import {
+  LIMITS,
+  MEDIA_LIMITS,
+  portfolioLinkFormSchema,
+  portfolioTitleSchema,
+  type PortfolioLinkFormValues,
+} from '@/lib/validation';
 import { formatBytes } from '@/lib/utils';
 import { PortfolioMedia } from '@/components/common';
 import { Alert, Button, Card, Field, Input } from '@/components/ui';
@@ -39,10 +47,94 @@ const COPY: Record<
     accept: MEDIA_LIMITS.REEL.types.join(','),
     help: `MP4, MOV or WebM, up to ${MEDIA_LIMITS.REEL.label} and ${MEDIA_LIMITS.REEL.maxMinutes} minutes. Large videos can take a minute to upload.`,
   },
+  LINK: {
+    title: 'Instagram reels',
+    field: 'portfolio-link',
+    noun: 'Instagram link',
+    submit: 'Add Instagram reel',
+    max: LIMITS.PORTFOLIO_LINKS_MAX,
+    accept: '',
+    help: 'Paste the link from Instagram’s Share → Copy link. Visitors open it on Instagram.',
+  },
 };
 
 function policyFor(kind: PortfolioMediaKind) {
   return kind === 'PHOTO' ? MEDIA_LIMITS.PORTFOLIO_PHOTO : MEDIA_LIMITS.REEL;
+}
+
+/** Add an Instagram reel link, with an optional caption. Nothing is uploaded. */
+function LinkAdder({ onAdded }: { onAdded: (item: PortfolioItem) => void }) {
+  const copy = COPY.LINK;
+  const [formError, setFormError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<PortfolioLinkFormValues>({
+    resolver: zodResolver(portfolioLinkFormSchema),
+    defaultValues: { url: '', title: '' },
+  });
+
+  return (
+    <form
+      noValidate
+      className="flex flex-col gap-3 rounded-lg border border-zinc-800 p-3"
+      onSubmit={handleSubmit(async (values) => {
+        setFormError(null);
+        try {
+          const { item } = await profileApi.addPortfolioLink(values.url, values.title);
+          onAdded(item);
+          reset({ url: '', title: '' });
+        } catch (caught) {
+          if (caught instanceof ApiError && (caught.fieldErrors.url || caught.fieldErrors.title)) {
+            if (caught.fieldErrors.url) setError('url', { message: caught.fieldErrors.url[0] });
+            if (caught.fieldErrors.title)
+              setError('title', { message: caught.fieldErrors.title[0] });
+          } else {
+            setFormError(
+              caught instanceof ApiError ? caught.message : 'Could not add the link. Try again.'
+            );
+          }
+        }
+      })}
+    >
+      <Field
+        label="Instagram reel link"
+        htmlFor={`${copy.field}-url`}
+        error={errors.url?.message}
+        hint={copy.help}
+      >
+        <Input
+          id={`${copy.field}-url`}
+          type="url"
+          inputMode="url"
+          placeholder="https://www.instagram.com/reel/…"
+          aria-invalid={Boolean(errors.url)}
+          {...register('url')}
+        />
+      </Field>
+      <Field
+        label="Reel caption (optional)"
+        htmlFor={`${copy.field}-title`}
+        error={errors.title?.message}
+      >
+        <Input
+          id={`${copy.field}-title`}
+          placeholder="e.g. Monologue — Kochi, 2026"
+          aria-invalid={Boolean(errors.title)}
+          {...register('title')}
+        />
+      </Field>
+      {formError ? <Alert>{formError}</Alert> : null}
+      <div>
+        <Button type="submit" isLoading={isSubmitting}>
+          {isSubmitting ? 'Adding…' : copy.submit}
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 /** Add a photo or reel, with an optional caption. */
@@ -252,7 +344,11 @@ function KindBlock({
       ) : null}
 
       {items.length < copy.max ? (
-        <Uploader kind={kind} onAdded={onAdded} />
+        kind === 'LINK' ? (
+          <LinkAdder onAdded={onAdded} />
+        ) : (
+          <Uploader kind={kind} onAdded={onAdded} />
+        )
       ) : (
         <p className="text-sm text-zinc-500">
           You have reached the limit of {copy.max} {copy.noun}s. Remove one to add another.
@@ -262,7 +358,7 @@ function KindBlock({
   );
 }
 
-/** Portfolio photos and show reels (WBS 1.1.2.3). */
+/** Portfolio photos, show reels and Instagram reel links (WBS 1.1.2.3). */
 export function PortfolioSection({
   items,
   onChange,
@@ -272,6 +368,7 @@ export function PortfolioSection({
 }) {
   const photos = items.filter((item) => item.kind === 'PHOTO');
   const videos = items.filter((item) => item.kind === 'VIDEO');
+  const links = items.filter((item) => item.kind === 'LINK');
   const add = (item: PortfolioItem) => onChange([...items, item]);
   const remove = (id: string) => onChange(items.filter((item) => item.id !== id));
 
@@ -281,6 +378,7 @@ export function PortfolioSection({
       <div className="flex flex-col gap-6">
         <KindBlock kind="PHOTO" items={photos} onAdded={add} onRemoved={remove} />
         <KindBlock kind="VIDEO" items={videos} onAdded={add} onRemoved={remove} />
+        <KindBlock kind="LINK" items={links} onAdded={add} onRemoved={remove} />
       </div>
     </Card>
   );

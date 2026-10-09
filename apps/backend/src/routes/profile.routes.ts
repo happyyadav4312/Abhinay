@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  addPortfolioLinkController,
   addPortfolioPhotoController,
   addReelController,
   addSkillController,
@@ -127,6 +128,12 @@ router.post(
   asyncHandler(authenticate),
   ...uploadReel,
   asyncHandler(addReelController)
+);
+router.post(
+  '/portfolio/links',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  asyncHandler(addPortfolioLinkController)
 );
 router.delete(
   '/portfolio/:id',

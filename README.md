@@ -144,6 +144,35 @@ both values, and refuses to run with `NODE_ENV=production`:
 SEED_ADMIN_EMAIL=you@example.test SEED_ADMIN_PASSWORD='at least 6 chars' npm run db:seed
 ```
 
+### 6. Optional demo data
+
+For manual testing, `npm run db:seed:demo` fills the development database with
+fictional data:
+
+- 17 members across every profession (3 producers, 2 directors, 8 actors, 2
+  camera operators, an editor and a gaffer), with bios, skills and credits.
+- Avatars and portfolio photos from Unsplash, linked directly (nothing is
+  uploaded to Cloudinary).
+- Portfolio Instagram reel links to real public reels. Each is captioned with
+  its real owner (e.g. "Sample reel — @madhuridixitnene"), so it is never
+  presented as the fictional member's own work.
+- 10 casting roles in every state: open with near and far deadlines, open with
+  no deadline, past deadline, draft and closed.
+- 19 applications that follow the real rules, and 4 shortlist folders.
+
+Every demo account has an email at `@demo.abhinay.test` and the password
+`demo1234` (or `SEED_DEMO_PASSWORD`); the command prints the list. Try, for
+example, `rhea.malhotra@demo.abhinay.test` (producer, with applicants and
+folders) or `arjun.menon@demo.abhinay.test` (actor).
+
+```bash
+npm run db:seed:demo              # does nothing if demo data already exists
+npm run db:seed:demo -- --fresh   # deletes ONLY the @demo.abhinay.test accounts, then recreates them
+```
+
+It refuses to run with `NODE_ENV=production` and never touches any other
+account.
+
 ## Running locally
 
 ```bash
@@ -237,6 +266,7 @@ suites set `MEDIA_STORAGE=local`, so they never call Cloudinary.
 | `npm run db:migrate`                                  | Create a reviewed development migration        |
 | `npm run db:migrate:deploy`                           | Apply committed migrations                     |
 | `npm run db:seed`                                     | Optional demo admin, from your own credentials |
+| `npm run db:seed:demo` (`-- --fresh`)                 | Optional demo members, roles and applications  |
 | `npm run db:studio`                                   | Prisma Studio                                  |
 | `npm run test:unit` / `test:integration` / `test:e2e` | Test suites                                    |
 | `npm run test:e2e:install`                            | Download the Playwright browser                |
@@ -271,6 +301,7 @@ Base URL `http://localhost:5000/api/v1`. Full contract:
 | DELETE | `/profile/resume`                                               | Bearer                                                  |
 | POST   | `/profile/portfolio/photos`                                     | Bearer, multipart `photo` + optional `title`            |
 | POST   | `/profile/portfolio/videos`                                     | Bearer, multipart `video` + optional `title`            |
+| POST   | `/profile/portfolio/links`                                      | Bearer, JSON `url` (Instagram reel) + optional `title`  |
 | DELETE | `/profile/portfolio/:id`                                        | Bearer, own items only                                  |
 | GET    | `/casting`                                                      | Bearer — open roles, search, filters, sort              |
 | POST   | `/casting`                                                      | Bearer, `PRODUCER` or `DIRECTOR`                        |

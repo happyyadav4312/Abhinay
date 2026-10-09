@@ -417,6 +417,42 @@ exercised by spying on the driver.
 delivery URLs are unguessable but unauthenticated; signed, expiring URLs are the
 upgrade path if CVs ever need to be private.
 
+## Instagram reel links and demo data (Week 10)
+
+**Reel links.** An Instagram reel URL is a web page, not a video file, so it
+cannot play in the portfolio's `<video>` player. At the client's choice it is a
+**link card** that opens Instagram in a new tab — not an embedded player, which
+would load Instagram's script and tracking on every profile view.
+
+| Choice                                             | Rationale                                                                                      |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| New `PortfolioMediaKind.LINK`, provider `EXTERNAL` | The existing item model fits; `EXTERNAL` tells deletion there is nothing of ours to remove     |
+| Strict host and path allowlist, canonical URL      | The URL becomes an `href`: no `javascript:`, no look-alike host, no tracking parameters stored |
+| Duplicates `409`, ≤ 6 links, counted separately    | Same row-lock pattern as photos and reels                                                      |
+| No media storage needed                            | Nothing is uploaded, so links work even when Cloudinary is unavailable                         |
+
+**Demo seed.** `prisma/seed-demo.ts` (`npm run db:seed:demo`) fills a
+development database for manual testing.
+
+- **Images** are Unsplash URLs, linked directly as `EXTERNAL` (the client chose
+  this over uploading copies to Cloudinary). Every photo id was checked to
+  return 200, and each was looked at so portraits go to avatars and film
+  imagery to portfolios.
+- **Reels** are real public reels found through news articles that embed them,
+  each verified live on 2026-10-09 by reading the owner from the reel page. A
+  reel from an account that appeared to belong to a child, and one featuring
+  that child, were deliberately left out. Every reel is captioned "Sample reel —
+  @owner", so the card never presents someone's work as the fictional member's.
+  Links can go stale; the seed does not re-check them at run time.
+- **Safety.** It refuses `NODE_ENV=production`, writes only accounts at
+  `@demo.abhinay.test`, does nothing if they already exist, and `--fresh`
+  deletes only those accounts (first removing any files they uploaded through
+  the app, so Cloudinary is not left with orphans).
+- **Realism.** Applications are created only where the real rules allow them
+  (matching profession, never the author, after publishing and before closing),
+  and `tests/integration/seed-demo.test.ts` asserts it, so the demo can never
+  show a state the API could not produce.
+
 ## Theme completion (Week 9)
 
 The in-progress shadcn theme (tweakcn tokens, Inter / Source Serif 4 / JetBrains

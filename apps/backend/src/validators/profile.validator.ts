@@ -82,6 +82,66 @@ export const portfolioUploadFieldsSchema = z
   })
   .strict();
 
+const INSTAGRAM_HOSTS = new Set(['instagram.com', 'www.instagram.com', 'm.instagram.com']);
+
+/**
+ * `/reel/CODE`, `/reels/CODE`, `/p/CODE` or `/tv/CODE`, optionally after the
+ * owner's handle (`/madhuridixitnene/reel/CODE/`, the form Instagram itself
+ * uses in shared links).
+ */
+const INSTAGRAM_PATH = /^\/(?:[A-Za-z0-9._]{1,30}\/)?(reel|reels|p|tv)\/([A-Za-z0-9_-]{5,40})\/?$/;
+
+/**
+ * The one canonical form of an Instagram reel or post link, or null when the
+ * input is anything else. Only https/http links to instagram.com hosts are
+ * accepted — never `javascript:`, a look-alike host, credentials or a port —
+ * and the query string (`?igsh=…`, `?utm_source=…`) and fragment are dropped,
+ * so the same reel shared twice is recognisably the same link.
+ */
+export function canonicalInstagramUrl(input: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(input.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+  if (url.username || url.password || url.port) return null;
+  if (!INSTAGRAM_HOSTS.has(url.hostname.toLowerCase())) return null;
+
+  const match = INSTAGRAM_PATH.exec(url.pathname);
+  if (!match) return null;
+  const [, type, code] = match;
+  return `https://www.instagram.com/${type === 'p' ? 'p' : 'reel'}/${code}/`;
+}
+
+/** POST /profile/portfolio/links — an Instagram reel shown as a link card. */
+export const portfolioLinkSchema = z
+  .object({
+    url: z
+      .string({ required_error: 'Link is required', invalid_type_error: 'Link must be text' })
+      .trim()
+      .min(1, 'Link is required')
+      .max(
+        LIMITS.PORTFOLIO_LINK_URL_MAX,
+        `Link must not exceed ${LIMITS.PORTFOLIO_LINK_URL_MAX} characters`
+      )
+      .transform((value, ctx) => {
+        const canonical = canonicalInstagramUrl(value);
+        if (!canonical) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Paste a link to an Instagram reel, e.g. https://www.instagram.com/reel/…',
+          });
+          return z.NEVER;
+        }
+        return canonical;
+      }),
+    title: optionalText(LIMITS.PORTFOLIO_TITLE_MAX, 'Title'),
+  })
+  .strict();
+
+export type PortfolioLinkInput = z.infer<typeof portfolioLinkSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type AddSkillInput = z.infer<typeof addSkillSchema>;
 export type CreateExperienceInput = z.infer<typeof createExperienceSchema>;

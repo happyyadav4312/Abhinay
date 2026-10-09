@@ -13,19 +13,22 @@ import {
   storageFor,
 } from '../config/storage';
 import {
+  AppError,
+  ErrorCode,
   limitExceeded,
   mediaStorageUnavailable,
   notFound,
   validationFailed,
 } from '../utils/errors';
 import { LIMITS } from '../validators/common';
+import { PortfolioLinkInput } from '../validators/profile.validator';
 import { OwnProfileDto, PortfolioItemDto, toPortfolioItem } from './dto';
 import { processPortfolioPhoto, processProfilePhoto } from './image.service';
 import { assertPdf, detectVideo, displayFileName, MEDIA_POLICY } from './media-validation.service';
 import { getOwnProfile } from './profile.service';
 
 /**
- * Profile media (WBS 1.1.2.2 CV, 1.1.2.3 photos and reels).
+ * Profile media (WBS 1.1.2.2 CV, 1.1.2.3 photos, reels and Instagram reel links).
  *
  * Every upload follows the same order, so that each failure leaves a clean state:
  *
@@ -61,10 +64,13 @@ const RESUME: Slot = { category: 'resumes', resourceType: 'raw' };
 const PORTFOLIO: Record<PortfolioMediaKind, Slot> = {
   PHOTO: { category: 'portfolio-photos', resourceType: 'image' },
   VIDEO: { category: 'reels', resourceType: 'video' },
+  // Links are EXTERNAL and never stored by us; the slot only satisfies the type.
+  LINK: { category: 'reels', resourceType: 'video' },
 };
 const PORTFOLIO_MAX: Record<PortfolioMediaKind, number> = {
   PHOTO: LIMITS.PORTFOLIO_PHOTOS_MAX,
   VIDEO: LIMITS.PORTFOLIO_VIDEOS_MAX,
+  LINK: LIMITS.PORTFOLIO_LINKS_MAX,
 };
 
 // ── Helpers ─────────────────────────────────────────────
@@ -302,13 +308,22 @@ export async function removeResume(userId: string): Promise<OwnProfileDto> {
 
 // ── Portfolio ───────────────────────────────────────────
 
+const PORTFOLIO_NOUN: Record<PortfolioMediaKind, string> = {
+  PHOTO: 'photos',
+  VIDEO: 'reels',
+  LINK: 'Instagram links',
+};
+
 function portfolioLimitMessage(kind: PortfolioMediaKind): string {
-  return kind === PortfolioMediaKind.PHOTO
-    ? `A portfolio may hold at most ${PORTFOLIO_MAX.PHOTO} photos`
-    : `A portfolio may hold at most ${PORTFOLIO_MAX.VIDEO} reels`;
+  return `A portfolio may hold at most ${PORTFOLIO_MAX[kind]} ${PORTFOLIO_NOUN[kind]}`;
 }
 
-const UPLOAD_FIELD: Record<PortfolioMediaKind, string> = { PHOTO: 'photo', VIDEO: 'video' };
+/** The request field a portfolio error is reported against. */
+const UPLOAD_FIELD: Record<PortfolioMediaKind, string> = {
+  PHOTO: 'photo',
+  VIDEO: 'video',
+  LINK: 'url',
+};
 
 /** Cheap early check, so a full portfolio does not cost an upload. */
 async function assertRoomFor(profileId: string, kind: PortfolioMediaKind): Promise<void> {
@@ -336,6 +351,23 @@ async function insertPortfolioItem(
       const count = await tx.portfolioItem.count({ where: { profileId, kind } });
       if (count >= PORTFOLIO_MAX[kind]) {
         throw limitExceeded(portfolioLimitMessage(kind), UPLOAD_FIELD[kind]);
+      }
+
+      // The same reel linked twice is almost certainly a mistake. Canonical
+      // URLs make "the same" exact, and the row lock makes the check race-free.
+      if (kind === PortfolioMediaKind.LINK) {
+        const duplicate = await tx.portfolioItem.findFirst({
+          where: { profileId, kind, storageKey: stored.key },
+          select: { id: true },
+        });
+        if (duplicate) {
+          throw new AppError(
+            409,
+            ErrorCode.ALREADY_IN_PORTFOLIO,
+            'This reel is already in your portfolio',
+            { url: ['This reel is already in your portfolio'] }
+          );
+        }
       }
 
       const item = await tx.portfolioItem.create({
@@ -423,7 +455,37 @@ export async function addReel(
   });
 }
 
-/** Delete one of the caller's portfolio items, and then its file. */
+/**
+ * Add an Instagram reel as a link card. Nothing is uploaded or downloaded: the
+ * row stores the canonical URL (validated by `portfolioLinkSchema`) as an
+ * EXTERNAL item, so it needs no media storage and works even when Cloudinary
+ * is not configured.
+ */
+export async function addPortfolioLink(
+  userId: string,
+  input: PortfolioLinkInput
+): Promise<PortfolioItemDto> {
+  const profileId = await requireOwnProfileId(userId);
+  await assertRoomFor(profileId, PortfolioMediaKind.LINK);
+
+  const link: StoredMedia = {
+    provider: StorageProvider.EXTERNAL,
+    key: input.url,
+    url: input.url,
+    bytes: 0,
+    width: null,
+    height: null,
+    durationSeconds: null,
+    thumbnailUrl: null,
+  };
+  return insertPortfolioItem(profileId, PortfolioMediaKind.LINK, link, {
+    title: input.title,
+    width: null,
+    height: null,
+  });
+}
+
+/** Delete one of the caller's portfolio items, and then its file (if it is ours). */
 export async function deletePortfolioItem(userId: string, itemId: string): Promise<void> {
   const item = await prisma.portfolioItem.findFirst({
     where: { id: itemId, profile: { userId } },

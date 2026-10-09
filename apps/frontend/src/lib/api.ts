@@ -326,6 +326,13 @@ export const profileApi = {
     );
   },
 
+  /** An Instagram reel shown as a link card. The server stores its canonical URL. */
+  addPortfolioLink: (url: string, title: string) =>
+    request<{ item: PortfolioItem }>('/profile/portfolio/links', {
+      method: 'POST',
+      body: { url, title: title.trim() || null },
+    }),
+
   deletePortfolioItem: (id: string) =>
     request<void>(`/profile/portfolio/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };

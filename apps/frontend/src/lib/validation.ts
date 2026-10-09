@@ -33,6 +33,8 @@ export const LIMITS = {
   PORTFOLIO_TITLE_MAX: 100,
   PORTFOLIO_PHOTOS_MAX: 12,
   PORTFOLIO_VIDEOS_MAX: 4,
+  PORTFOLIO_LINKS_MAX: 6,
+  PORTFOLIO_LINK_URL_MAX: 300,
 } as const;
 
 /**
@@ -210,6 +212,53 @@ export function castingRoleFormSchema(savedDeadline: string | null = null) {
 export const shortlistFolderFormSchema = z.object({
   name: requiredText('Folder name', LIMITS.SHORTLIST_FOLDER_NAME_MAX),
 });
+
+/**
+ * Mirrors `canonicalInstagramUrl` in apps/backend/src/validators/profile.validator.ts:
+ * an http(s) link to an Instagram reel or post. The server canonicalises it.
+ */
+export function isInstagramReelUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    return false;
+  }
+  return (
+    (url.protocol === 'https:' || url.protocol === 'http:') &&
+    !url.username &&
+    !url.password &&
+    !url.port &&
+    ['instagram.com', 'www.instagram.com', 'm.instagram.com'].includes(
+      url.hostname.toLowerCase()
+    ) &&
+    /^\/(?:[A-Za-z0-9._]{1,30}\/)?(reel|reels|p|tv)\/[A-Za-z0-9_-]{5,40}\/?$/.test(url.pathname)
+  );
+}
+
+export const portfolioLinkFormSchema = z.object({
+  url: z
+    .string()
+    .trim()
+    .min(1, 'Paste a link to an Instagram reel')
+    .max(
+      LIMITS.PORTFOLIO_LINK_URL_MAX,
+      `Link must not exceed ${LIMITS.PORTFOLIO_LINK_URL_MAX} characters`
+    )
+    .refine(
+      isInstagramReelUrl,
+      'Paste a link to an Instagram reel, e.g. https://www.instagram.com/reel/…'
+    ),
+  title: z
+    .string()
+    .trim()
+    .max(
+      LIMITS.PORTFOLIO_TITLE_MAX,
+      `Title must not exceed ${LIMITS.PORTFOLIO_TITLE_MAX} characters`
+    ),
+});
+
+export type PortfolioLinkFormValues = z.input<typeof portfolioLinkFormSchema>;
 
 /** An optional caption for a portfolio upload. */
 export const portfolioTitleSchema = z

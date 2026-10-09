@@ -436,6 +436,128 @@ describe('when storage misbehaves', () => {
   });
 });
 
+describe('Instagram reel links', () => {
+  const REEL = 'https://www.instagram.com/reel/CZ9VsSUBomM/';
+  const addLink = (token: string, body: object) =>
+    request(app).post('/api/v1/profile/portfolio/links').set(bearer(token)).send(body);
+
+  it('stores the canonical link as an EXTERNAL item and shows it on the public profile', async () => {
+    const user = await registerUser(app);
+
+    const res = await addLink(user.accessToken, {
+      url: 'https://instagram.com/reel/CZ9VsSUBomM/?igsh=tracking',
+      title: 'Dance reel',
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.item).toMatchObject({
+      kind: 'LINK',
+      url: REEL,
+      title: 'Dance reel',
+      thumbnailUrl: null,
+    });
+    const row = await prisma.portfolioItem.findFirstOrThrow();
+    expect(row).toMatchObject({ provider: StorageProvider.EXTERNAL, storageKey: REEL });
+
+    const publicView = await request(app).get(`/api/v1/profile/${user.profileId}`);
+    expect(publicView.body.data.profile.portfolio).toEqual([res.body.data.item]);
+  });
+
+  it('works without media storage, since nothing is uploaded', async () => {
+    const user = await registerUser(app);
+    vi.spyOn(mediaStorage, 'isAvailable').mockReturnValue(false);
+    const upload = vi.spyOn(mediaStorage, 'upload');
+
+    expect((await addLink(user.accessToken, { url: REEL })).status).toBe(201);
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('refuses other sites, scripts, duplicates and a seventh link', async () => {
+    const user = await registerUser(app);
+
+    for (const url of [
+      'javascript:alert(1)',
+      'https://instagram.com.evil.example/reel/CZ9VsSUBomM/',
+      'https://www.instagram.com/madhuridixitnene/',
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    ]) {
+      const res = await addLink(user.accessToken, { url });
+      expect(res.status, url).toBe(422);
+      expect(res.body.error.fieldErrors.url).toBeDefined();
+    }
+    expect((await addLink(user.accessToken, { url: REEL, kind: 'PHOTO' })).status).toBe(422);
+
+    await addLink(user.accessToken, { url: REEL });
+    const duplicate = await addLink(user.accessToken, {
+      url: 'https://www.instagram.com/someone/reel/CZ9VsSUBomM/?utm_source=x',
+    });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.error.code).toBe('ALREADY_IN_PORTFOLIO');
+
+    for (const code of [
+      'CZ6vPjjhRHt',
+      'CYMTXE0IqpP',
+      'CXVTbACA8m5',
+      'CXGvkOMAKlU',
+      'CW-mG8VAIg8',
+    ]) {
+      expect(
+        (await addLink(user.accessToken, { url: `https://www.instagram.com/reel/${code}/` })).status
+      ).toBe(201);
+    }
+    const seventh = await addLink(user.accessToken, {
+      url: 'https://www.instagram.com/reel/CW0tKMjgcAh/',
+    });
+    expect(seventh.status).toBe(422);
+    expect(seventh.body.error.code).toBe('LIMIT_EXCEEDED');
+
+    // Links count separately from uploaded reels and photos.
+    expect(await prisma.portfolioItem.count({ where: { kind: PortfolioMediaKind.LINK } })).toBe(
+      LIMITS.PORTFOLIO_LINKS_MAX
+    );
+  });
+
+  it('requires a session', async () => {
+    expect(
+      (await request(app).post('/api/v1/profile/portfolio/links').send({ url: REEL })).status
+    ).toBe(401);
+  });
+
+  it('deleting a link or an external photo never calls a storage driver', async () => {
+    const user = await registerUser(app);
+    const linkId = (await addLink(user.accessToken, { url: REEL })).body.data.item.id;
+    const localRemove = vi.spyOn(localMediaStorage, 'remove');
+    const { cloudinaryMediaStorage } = await import('../../src/config/storage');
+    const cloudRemove = vi.spyOn(cloudinaryMediaStorage, 'remove');
+
+    const deleted = await request(app)
+      .delete(`/api/v1/profile/portfolio/${linkId}`)
+      .set(bearer(user.accessToken));
+    expect(deleted.status).toBe(204);
+
+    // A demo avatar hosted on Unsplash, then replaced by a real upload.
+    const unsplash = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=512';
+    await prisma.profile.update({
+      where: { userId: user.userId },
+      data: {
+        profileImage: unsplash,
+        profileImageUrl: unsplash,
+        profileImageProvider: StorageProvider.EXTERNAL,
+      },
+    });
+    expect(
+      (await request(app).get(`/api/v1/profile/${user.profileId}`)).body.data.profile.photoUrl
+    ).toBe(unsplash);
+    await request(app)
+      .post('/api/v1/profile/photo')
+      .set(bearer(user.accessToken))
+      .attach('photo', await jpeg(), { filename: 'new.jpg', contentType: 'image/jpeg' });
+
+    expect(localRemove).not.toHaveBeenCalled();
+    expect(cloudRemove).not.toHaveBeenCalled();
+  });
+});
+
 describe('photos stored before Cloudinary', () => {
   it('still resolve from their local key, and are deleted from local storage on replacement', async () => {
     const user = await registerUser(app);

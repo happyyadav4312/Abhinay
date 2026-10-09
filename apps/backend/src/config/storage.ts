@@ -301,9 +301,33 @@ export class CloudinaryMediaStorage implements MediaStorage {
   }
 }
 
+// ── EXTERNAL ────────────────────────────────────────────
+
+/**
+ * Files hosted by someone else — an Instagram reel, a demo image on Unsplash.
+ * The row only points at them: nothing is ever uploaded through this driver,
+ * and deleting the row leaves the file where it is, because it was never ours.
+ */
+export class ExternalMediaStorage implements MediaStorage {
+  readonly provider = StorageProvider.EXTERNAL;
+
+  isAvailable(): boolean {
+    return true;
+  }
+
+  async upload(): Promise<StoredMedia> {
+    throw new Error('External media is linked, never uploaded');
+  }
+
+  async remove(): Promise<void> {
+    // Nothing of ours to delete.
+  }
+}
+
 // ── Wiring ──────────────────────────────────────────────
 
 export const localMediaStorage = new LocalMediaStorage(env.STORAGE_ROOT_ABSOLUTE);
+export const externalMediaStorage = new ExternalMediaStorage();
 
 export const cloudinaryMediaStorage = new CloudinaryMediaStorage({
   cloudName: env.CLOUDINARY_CLOUD_NAME,
@@ -318,7 +342,14 @@ export const mediaStorage: MediaStorage =
 
 /** The driver holding an existing file, whichever driver is active for new uploads. */
 export function storageFor(provider: StorageProvider): MediaStorage {
-  return provider === StorageProvider.CLOUDINARY ? cloudinaryMediaStorage : localMediaStorage;
+  switch (provider) {
+    case StorageProvider.CLOUDINARY:
+      return cloudinaryMediaStorage;
+    case StorageProvider.EXTERNAL:
+      return externalMediaStorage;
+    default:
+      return localMediaStorage;
+  }
 }
 
 /** Temporary uploads older than this are leftovers of a crash and are swept. */

@@ -6,6 +6,7 @@ import { parseOrThrow, requireUuidParam } from '../validators/common';
 import {
   addSkillSchema,
   createExperienceSchema,
+  portfolioLinkSchema,
   portfolioUploadFieldsSchema,
   updateExperienceSchema,
   updateProfileSchema,
@@ -129,6 +130,13 @@ export async function addReelController(req: Request, res: Response): Promise<vo
   const { title } = parseOrThrow(portfolioUploadFieldsSchema, { ...req.body });
   const item = await mediaService.addReel(currentUserId(req), upload, title);
   sendSuccess(res, { item }, 'Reel added to portfolio', 201);
+}
+
+/** POST /api/v1/profile/portfolio/links — JSON `{ url, title? }`, an Instagram reel link. */
+export async function addPortfolioLinkController(req: Request, res: Response): Promise<void> {
+  const input = parseOrThrow(portfolioLinkSchema, req.body);
+  const item = await mediaService.addPortfolioLink(currentUserId(req), input);
+  sendSuccess(res, { item }, 'Instagram reel added to portfolio', 201);
 }
 
 /** DELETE /api/v1/profile/portfolio/:id */

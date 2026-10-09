@@ -73,9 +73,10 @@ export interface Resume {
   uploadedAt: string;
 }
 
-export type PortfolioMediaKind = 'PHOTO' | 'VIDEO';
+/** LINK is an Instagram reel, shown as a card that opens it on Instagram. */
+export type PortfolioMediaKind = 'PHOTO' | 'VIDEO' | 'LINK';
 
-/** A portfolio photo or show reel. */
+/** A portfolio photo, show reel or Instagram reel link. */
 export interface PortfolioItem {
   id: string;
   kind: PortfolioMediaKind;

@@ -44,6 +44,7 @@ onto specific input fields. A `204` response has no body at all.
 `NOT_FOUND` (404), `EMAIL_TAKEN` (409), `INVALID_STATUS_TRANSITION` (409),
 `CASTING_ROLE_CLOSED` (409), `CASTING_ROLE_NOT_DRAFT` (409), `CASTING_ROLE_NOT_OPEN` (409),
 `ALREADY_APPLIED` (409), `DEADLINE_PASSED` (409), `FOLDER_NAME_TAKEN` (409),
+`ALREADY_IN_PORTFOLIO` (409),
 `PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415), `TOO_MANY_REQUESTS` (429),
 `LIMIT_EXCEEDED` (422), `INTERNAL_ERROR` (500), `MEDIA_UPLOAD_FAILED` (502),
 `SERVICE_UNAVAILABLE` (503), `MEDIA_STORAGE_UNAVAILABLE` (503).
@@ -114,6 +115,7 @@ carries no ambient cookies and is therefore not a CSRF vector.
 | reel                                | one MP4/MOV/WebM file ≤ 100 MB and ≤ 3 minutes; at most 4 per profile                  |
 | CV                                  | one PDF ≤ 5 MiB                                                                        |
 | portfolio `title`                   | optional, ≤ 100 characters                                                             |
+| Instagram reel `url`                | ≤ 300 characters, an instagram.com reel/post link; at most 6 per profile               |
 
 Optional text fields accept `null` or `""` to clear them; both are stored as
 `NULL` and returned as `null`.
@@ -454,10 +456,32 @@ stored as uploaded; Cloudinary reports their length and a still frame
 (`thumbnailUrl`). A reel longer than 3 minutes is deleted again and refused with
 `422`. At most 4 reels per profile.
 
+## POST /profile/portfolio/links
+
+Bearer, JSON. Adds an Instagram reel as a **link card**: nothing is uploaded,
+downloaded or embedded, and it works even when media storage is not configured.
+
+```json
+{ "url": "https://instagram.com/reel/CZ9VsSUBomM/?igsh=…", "title": "Dance reel" }
+```
+
+`201 { "item": PortfolioItem }` with `kind: "LINK"`, `url` set to the canonical
+form (`https://www.instagram.com/reel/<code>/`), `thumbnailUrl: null` and
+`bytes: 0`.
+
+The link must be `http(s)` to `instagram.com`, `www.instagram.com` or
+`m.instagram.com`, with a path of `/reel/<code>`, `/reels/<code>`, `/p/<code>`
+or `/tv/<code>` (optionally after the owner's handle). Query strings and
+fragments (tracking parameters) are dropped; `javascript:` URLs, look-alike
+hosts, credentials, ports and profile links are `422` on `url`. The same reel
+twice is `409 ALREADY_IN_PORTFOLIO`; a seventh link is `422 LIMIT_EXCEEDED`.
+Links count separately from uploaded photos and reels.
+
 ## DELETE /profile/portfolio/:id
 
-Bearer. Removes one of the caller's portfolio items and then its file. `204`.
-Another member's item, or an unknown id, is `404`.
+Bearer. Removes one of the caller's portfolio items and then its file — unless
+it is a link or another externally hosted item, which has no file of ours to
+delete. `204`. Another member's item, or an unknown id, is `404`.
 
 ## Media storage
 
@@ -471,6 +495,10 @@ request ends, whatever the outcome.
 | `MEDIA_STORAGE=cloudinary`   | Default. Files go to Cloudinary under `CLOUDINARY_FOLDER` (`abhinay/<kind>/…`).           |
 | `MEDIA_STORAGE=local`        | Files are copied under `STORAGE_ROOT` and served from `/media/<kind>/…` (tests use this). |
 | Cloudinary credentials blank | Uploads answer `503 MEDIA_STORAGE_UNAVAILABLE`; production refuses to start.              |
+
+A third provider, `EXTERNAL`, marks items that only point somewhere else:
+Instagram reel links, and the Unsplash images used by the demo seed. They are
+never uploaded and never deleted by the API.
 
 The response only ever carries delivery URLs — never storage keys or which
 provider holds a file. Photos uploaded before Cloudinary keep working from

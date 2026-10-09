@@ -6,7 +6,7 @@ import morgan from 'morgan';
 import { env } from './config/env';
 import { localMediaStorage, MEDIA_CATEGORIES, MEDIA_ROUTE_PREFIX } from './config/storage';
 import routes from './routes';
-import { CLIENT_HEADER } from './middleware/origin.middleware';
+import { CLIENT_HEADER, isTrustedOrigin } from './middleware/origin.middleware';
 import { errorHandler } from './middleware/error.middleware';
 import { notFoundHandler } from './middleware/notFound.middleware';
 import { LIMITS } from './validators/common';
@@ -38,7 +38,7 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || origin === env.FRONTEND_URL) {
+      if (!origin || isTrustedOrigin(origin)) {
         callback(null, true);
         return;
       }

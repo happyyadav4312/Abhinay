@@ -136,9 +136,19 @@ export function PortfolioList({ items }: { items: PortfolioItem[] }) {
 
   const photos = items.filter((item) => item.kind === 'PHOTO');
   const videos = items.filter((item) => item.kind === 'VIDEO');
+  const links = items.filter((item) => item.kind === 'LINK');
 
   return (
     <div className="flex flex-col gap-5">
+      {links.length > 0 ? (
+        <ul aria-label="Instagram reels" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {links.map((item) => (
+            <li key={item.id}>
+              <PortfolioMedia item={item} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {videos.length > 0 ? (
         <ul aria-label="Show reels" className="grid gap-3 sm:grid-cols-2">
           {videos.map((item) => (

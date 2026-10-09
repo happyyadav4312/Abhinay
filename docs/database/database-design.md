@@ -247,9 +247,13 @@ a casting role's `seeking_role`.
 **ApplicationStatus:** `APPLIED`, `SHORTLISTED`, `SELECTED`, `REJECTED` — the four
 statuses agreed in Lab 2. Every application starts as `APPLIED`.
 
-**StorageProvider:** `LOCAL`, `CLOUDINARY` — where a stored file lives.
+**StorageProvider:** `LOCAL`, `CLOUDINARY` — where a stored file lives — and
+`EXTERNAL`, a link to a file hosted elsewhere (Instagram reels, the demo seed's
+Unsplash images), which is never uploaded or deleted by the API.
 
-**PortfolioMediaKind:** `PHOTO`, `VIDEO`.
+**PortfolioMediaKind:** `PHOTO`, `VIDEO`, and `LINK` — an Instagram reel shown
+as a link card. A `LINK` row has provider `EXTERNAL`, its canonical URL as both
+`storage_key` and `url`, and `bytes = 0`.
 
 ## Relationships
 
@@ -271,8 +275,9 @@ prisma/migrations/
 ├── 20260919094048_profiles_skills_experience_refresh_tokens/
 ├── 20261005090213_casting_marketplace/                      casting_roles + CastingRoleStatus
 ├── 20261005095956_applications/                             applications + ApplicationStatus
-└── 20261008105134_deadline_shortlists_portfolio_media/      deadline, shortlist tables,
-                                                             portfolio_items, CV and photo links
+├── 20261008105134_deadline_shortlists_portfolio_media/      deadline, shortlist tables,
+│                                                            portfolio_items, CV and photo links
+└── 20261009104942_external_links/                           EXTERNAL provider, LINK kind
 ```
 
 The casting and media migrations are purely additive — new enums, new tables,
