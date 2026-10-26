@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Check, Plus } from 'lucide-react';
 import { ApiError, castingApi, shortlistApi, type ApplicantPage } from '@/lib/api';
 import {
   LIMITS,
@@ -165,10 +166,10 @@ function FolderBar({
     <Card>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+          <h2 className="font-heading text-lg font-medium text-foreground">
             Shortlist folders
           </h2>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             Sort applicants into your own folders. Folders are private to you, and filing someone
             does not notify them or change their application status.
           </p>
@@ -179,10 +180,10 @@ function FolderBar({
             href={hrefFor()}
             aria-current={!activeFolderId ? 'page' : undefined}
             className={cn(
-              'rounded-full border px-3 py-1 text-sm',
+              'rounded-full border px-3 py-1 text-sm transition-colors',
               !activeFolderId
-                ? 'border-primary bg-primary/15 text-zinc-100'
-                : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800/60'
+                ? 'border-primary bg-primary/20 text-foreground font-medium shadow-2xs'
+                : 'border-border bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground'
             )}
           >
             All applicants{total !== null ? ` (${total})` : ''}
@@ -193,10 +194,10 @@ function FolderBar({
               href={hrefFor(folder.id)}
               aria-current={folder.id === activeFolderId ? 'page' : undefined}
               className={cn(
-                'rounded-full border px-3 py-1 text-sm',
+                'rounded-full border px-3 py-1 text-sm transition-colors',
                 folder.id === activeFolderId
-                  ? 'border-primary bg-primary/15 text-zinc-100'
-                  : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800/60'
+                  ? 'border-primary bg-primary/20 text-foreground font-medium shadow-2xs'
+                  : 'border-border bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-foreground'
               )}
             >
               {folder.name} ({folder.applicantCount})
@@ -222,8 +223,8 @@ function FolderBar({
             }}
           />
         ) : active && mode === 'delete' ? (
-          <div className="flex flex-col gap-3 rounded-lg border border-zinc-700 p-3">
-            <p className="text-sm text-zinc-200">
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card/60 p-4">
+            <p className="text-sm text-foreground font-medium">
               Delete the folder “{active.name}”? The applicants in it stay on your list; only the
               folder goes.
             </p>
@@ -251,7 +252,7 @@ function FolderBar({
             </Button>
           </div>
         ) : folders.length >= LIMITS.SHORTLIST_FOLDERS_PER_ROLE_MAX ? (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-muted-foreground">
             You have reached the limit of {LIMITS.SHORTLIST_FOLDERS_PER_ROLE_MAX} folders for this
             role.
           </p>
@@ -299,7 +300,7 @@ function ApplicantCard({
             <Avatar name={person.name} photoUrl={person.photoUrl} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-medium text-zinc-100">
+                <h3 className="font-medium text-foreground">
                   {person.profileId ? (
                     <Link
                       href={`/profile/${person.profileId}`}
@@ -313,7 +314,7 @@ function ApplicantCard({
                 </h3>
                 <ApplicationStatusBadge status={applicant.status} />
               </div>
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-muted-foreground">
                 {ROLE_LABELS[person.role]}
                 {person.location ? ` · ${person.location}` : ''} · Applied{' '}
                 {formatDate(applicant.appliedAt)}
@@ -322,14 +323,14 @@ function ApplicantCard({
           </div>
 
           {/* Status workflow actions */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-zinc-800/80">
-            <span className="text-xs font-medium text-zinc-400 mr-1">Move status:</span>
+          <div className="flex flex-wrap items-center gap-1.5 pt-2.5 border-t border-border">
+            <span className="text-xs font-medium text-muted-foreground mr-1">Move status:</span>
             {applicant.status !== 'SHORTLISTED' && (
               <button
                 type="button"
                 disabled={isUpdatingStatus}
                 onClick={() => onUpdateStatus('SHORTLISTED')}
-                className="rounded-md border border-amber-600/50 bg-amber-950/20 px-2 py-0.5 text-xs font-medium text-amber-300 hover:bg-amber-900/30 transition-colors disabled:opacity-50"
+                className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
               >
                 Shortlist
               </button>
@@ -339,7 +340,7 @@ function ApplicantCard({
                 type="button"
                 disabled={isUpdatingStatus}
                 onClick={() => onUpdateStatus('SELECTED')}
-                className="rounded-md border border-emerald-600/50 bg-emerald-950/20 px-2 py-0.5 text-xs font-medium text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
+                className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
               >
                 Select
               </button>
@@ -349,13 +350,13 @@ function ApplicantCard({
                 type="button"
                 disabled={isUpdatingStatus}
                 onClick={() => onUpdateStatus('REJECTED')}
-                className="rounded-md border border-rose-600/50 bg-rose-950/20 px-2 py-0.5 text-xs font-medium text-rose-300 hover:bg-rose-900/30 transition-colors disabled:opacity-50"
+                className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
               >
                 Reject
               </button>
             )}
             {isUpdatingStatus && (
-              <span className="text-xs text-zinc-400 animate-pulse ml-1">Updating…</span>
+              <span className="text-xs text-muted-foreground animate-pulse ml-1">Updating…</span>
             )}
           </div>
 
@@ -363,9 +364,9 @@ function ApplicantCard({
             <div
               role="group"
               aria-label={`Folders for ${person.name}`}
-              className="flex flex-wrap gap-1.5 pt-1"
+              className="flex flex-wrap items-center gap-1.5 pt-1"
             >
-              <span className="text-xs font-medium text-zinc-500 mr-1 self-center">Folder:</span>
+              <span className="text-xs font-medium text-muted-foreground mr-1 self-center">Folder:</span>
               {folders.map((folder) => {
                 const filed = applicant.folderIds.includes(folder.id);
                 const pending = pendingFolderId === folder.id;
@@ -377,13 +378,19 @@ function ApplicantCard({
                     disabled={pendingFolderId !== null}
                     onClick={() => onToggle(folder, filed)}
                     className={cn(
-                      'rounded-full border px-2.5 py-0.5 text-xs transition-colors disabled:opacity-60',
+                      'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs transition-colors disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
                       filed
-                        ? 'border-primary bg-primary/20 text-zinc-100'
-                        : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                        ? 'border-primary bg-primary/20 text-foreground font-medium'
+                        : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
                     )}
                   >
-                    {pending ? '…' : filed ? '✓ ' : '+ '}
+                    {pending ? (
+                      '… '
+                    ) : filed ? (
+                      <Check className="h-3 w-3 mr-1 shrink-0 text-primary" />
+                    ) : (
+                      <Plus className="h-3 w-3 mr-1 shrink-0" />
+                    )}
                     {folder.name}
                   </button>
                 );

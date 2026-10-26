@@ -132,7 +132,7 @@ function MyCastingList() {
               href={mineHref({ status: tab.status })}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'rounded-md px-3 py-1.5 text-sm transition-colors',
+                'rounded-md px-3 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
                 active
                   ? 'border border-border/80 bg-secondary text-foreground font-medium shadow-2xs'
                   : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'

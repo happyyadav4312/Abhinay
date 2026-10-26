@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ApiError, profileApi } from '@/lib/api';
 import { LIMITS, profileFormSchema, type ProfileFormValues } from '@/lib/validation';
 import { RequireAuth } from '@/components/common';
-import { Alert, Button, Card, Field, Input, Spinner, Textarea } from '@/components/ui';
+import { Alert, Button, buttonVariants, Card, Field, Input, Spinner, Textarea } from '@/components/ui';
 import {
   ROLE_LABELS,
   type Experience,
@@ -177,7 +177,7 @@ function EditProfileContent() {
         </div>
         <Link
           href="/profile"
-          className="rounded-md border border-border bg-secondary/80 px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
         >
           Back to profile
         </Link>
@@ -186,7 +186,7 @@ function EditProfileContent() {
       <PhotoSection name={profile.name} photoUrl={photoUrl} onUpdated={applySubOperation} />
 
       <Card>
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-zinc-500">
+        <h2 className="font-heading text-lg font-medium text-foreground mb-4">
           Basic details
         </h2>
 

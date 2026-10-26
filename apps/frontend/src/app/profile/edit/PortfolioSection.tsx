@@ -80,7 +80,7 @@ function LinkAdder({ onAdded }: { onAdded: (item: PortfolioItem) => void }) {
   return (
     <form
       noValidate
-      className="flex flex-col gap-3 rounded-lg border border-zinc-800 p-3"
+      className="flex flex-col gap-3 rounded-lg border border-border bg-card/60 p-4"
       onSubmit={handleSubmit(async (values) => {
         setFormError(null);
         try {
@@ -199,9 +199,9 @@ function Uploader({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-zinc-800 p-3">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card/60 p-4">
       <div>
-        <label htmlFor={copy.field} className="text-sm font-medium text-zinc-200">
+        <label htmlFor={copy.field} className="text-sm font-medium text-foreground">
           Add a {copy.noun}
         </label>
         <input
@@ -211,9 +211,9 @@ function Uploader({
           accept={copy.accept}
           disabled={busy}
           onChange={(event) => pick(event.target.files?.[0] ?? null)}
-          className="mt-1.5 block w-full text-sm text-zinc-400 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-sm file:text-zinc-100 hover:file:bg-zinc-700"
+          className="mt-1.5 block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80 transition-colors"
         />
-        <p className="mt-1 text-xs text-zinc-500">{copy.help}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{copy.help}</p>
       </div>
 
       {file ? (
@@ -235,7 +235,7 @@ function Uploader({
 
       {error ? <Alert>{error}</Alert> : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
           disabled={!file || busy}
@@ -245,7 +245,7 @@ function Uploader({
           {busy ? 'Uploading…' : copy.submit}
         </Button>
         {file && !busy ? (
-          <span className="self-center text-xs text-zinc-500">
+          <span className="self-center text-xs text-muted-foreground tabular-nums">
             {file.name} · {formatBytes(file.size)}
           </span>
         ) : null}
@@ -291,9 +291,9 @@ function KindBlock({
 
   return (
     <section aria-labelledby={`${copy.field}-heading`} className="flex flex-col gap-3">
-      <h3 id={`${copy.field}-heading`} className="text-sm font-medium text-zinc-200">
+      <h3 id={`${copy.field}-heading`} className="font-medium text-foreground">
         {copy.title}{' '}
-        <span className="font-normal text-zinc-500">
+        <span className="font-normal text-muted-foreground tabular-nums">
           ({items.length} of {copy.max})
         </span>
       </h3>
@@ -350,7 +350,7 @@ function KindBlock({
           <Uploader kind={kind} onAdded={onAdded} />
         )
       ) : (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           You have reached the limit of {copy.max} {copy.noun}s. Remove one to add another.
         </p>
       )}
@@ -374,7 +374,7 @@ export function PortfolioSection({
 
   return (
     <Card>
-      <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-zinc-500">Portfolio</h2>
+      <h2 className="font-heading text-lg font-medium text-foreground mb-4">Portfolio &amp; Reels</h2>
       <div className="flex flex-col gap-6">
         <KindBlock kind="PHOTO" items={photos} onAdded={add} onRemoved={remove} />
         <KindBlock kind="VIDEO" items={videos} onAdded={add} onRemoved={remove} />

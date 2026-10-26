@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { RequireAuth } from '@/components/common';
-import { Card } from '@/components/ui';
+import { buttonVariants, Card } from '@/components/ui';
 import { canPostCasting, ROLE_LABELS } from '@/types';
 
 function DashboardContent() {
@@ -32,13 +32,13 @@ function DashboardContent() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href="/profile"
-              className="rounded-md bg-brand-600 px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-xs hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className={buttonVariants({ size: 'sm' })}
             >
               View profile
             </Link>
             <Link
               href="/profile/edit"
-              className="rounded-md border border-border bg-secondary/80 px-3.5 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
             >
               Edit profile
             </Link>
@@ -73,13 +73,13 @@ function DashboardContent() {
               <>
                 <Link
                   href="/casting/create"
-                  className="rounded-md bg-brand-600 px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-xs hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className={buttonVariants({ size: 'sm' })}
                 >
                   Post a role
                 </Link>
                 <Link
                   href="/casting/mine"
-                  className="rounded-md border border-border bg-secondary/80 px-3.5 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className={buttonVariants({ variant: 'outline', size: 'sm' })}
                 >
                   My postings
                 </Link>
@@ -87,11 +87,10 @@ function DashboardContent() {
             ) : null}
             <Link
               href="/casting"
-              className={
-                isCastingPoster
-                  ? 'rounded-md border border-border bg-secondary/80 px-3.5 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
-                  : 'rounded-md bg-brand-600 px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-xs hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
-              }
+              className={buttonVariants({
+                variant: isCastingPoster ? 'outline' : 'default',
+                size: 'sm',
+              })}
             >
               Browse casting calls
             </Link>
@@ -106,7 +105,7 @@ function DashboardContent() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href="/applications"
-              className="rounded-md border border-border bg-secondary/80 px-3.5 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
             >
               View my applications
             </Link>
@@ -121,7 +120,7 @@ function DashboardContent() {
       <section aria-labelledby="coming-soon">
         <h2
           id="coming-soon"
-          className="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground"
+          className="mb-3 font-heading text-lg font-medium text-foreground"
         >
           Coming in a later release
         </h2>

@@ -32,7 +32,7 @@ const SIZES = {
  */
 export function Avatar({ name, photoUrl, size = 'md', className }: AvatarProps) {
   const base = cn(
-    'shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800',
+    'shrink-0 overflow-hidden rounded-full border border-border bg-secondary/80 shadow-2xs',
     SIZES[size],
     className
   );
@@ -52,7 +52,7 @@ export function Avatar({ name, photoUrl, size = 'md', className }: AvatarProps) 
 
   return (
     <div
-      className={cn(base, 'grid place-items-center font-semibold text-zinc-300')}
+      className={cn(base, 'grid place-items-center font-medium text-secondary-foreground select-none')}
       role="img"
       aria-label={`${name}'s profile placeholder`}
     >

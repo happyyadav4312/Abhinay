@@ -9,7 +9,7 @@ import { useNotifications } from '@/hooks';
 import { ErrorState, LoadingState, RequireAuth } from '@/components/common';
 import { Pager, formatDate } from '@/components/casting';
 import { Button, Card, CardContent, EmptyState } from '@/components/ui';
-import type { Notification, NotificationPage, NotificationType } from '@/types';
+import type { NotificationPage, NotificationType } from '@/types';
 
 type LoadResult = { key: string } & (
   { ok: true; page: NotificationPage } | { ok: false; message: string }
@@ -31,13 +31,13 @@ function NotificationIcon({ type }: { type: NotificationType }) {
       );
     case 'APPLICATION_REJECTED':
       return (
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive border border-destructive/20">
           <Info className="h-5 w-5" />
         </div>
       );
     default:
       return (
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20">
           <CheckCircle2 className="h-5 w-5" />
         </div>
       );
@@ -153,42 +153,42 @@ function NotificationsList() {
               <Card
                 className={`transition-colors border ${
                   !notification.read
-                    ? 'border-zinc-700 bg-zinc-900/60'
-                    : 'border-zinc-800/80 bg-zinc-950/40'
+                    ? 'border-primary/40 bg-card/90 shadow-2xs'
+                    : 'border-border/70 bg-card/40'
                 }`}
               >
                 <CardContent className="flex items-start gap-4 p-4">
                   <NotificationIcon type={notification.type} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <h2 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+                      <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                         {notification.title}
                         {!notification.read && (
-                          <span className="h-2 w-2 rounded-full bg-brand-500" title="Unread" />
+                          <span className="h-2 w-2 rounded-full bg-primary" title="Unread" />
                         )}
                       </h2>
-                      <time className="text-xs text-zinc-500 shrink-0">
+                      <time className="text-xs text-muted-foreground shrink-0 tabular-nums">
                         {formatDate(notification.createdAt)}
                       </time>
                     </div>
-                    <p className="mt-1 text-sm text-zinc-300 leading-relaxed">
+                    <p className="mt-1 text-sm text-foreground/90 leading-relaxed">
                       {notification.message}
                     </p>
 
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {notification.relatedApplicationId && (
                         <Link
-                          href="/dashboard"
-                          className="text-xs font-medium text-brand-400 hover:text-brand-300 hover:underline"
+                          href="/applications"
+                          className="text-xs font-medium text-primary hover:underline underline-offset-2"
                         >
-                          View application in Dashboard →
+                          View in my applications →
                         </Link>
                       )}
                       {!notification.read && (
                         <button
                           type="button"
                           onClick={() => void handleMarkAsRead(notification.id)}
-                          className="text-xs text-zinc-400 hover:text-zinc-200"
+                          className="rounded text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                         >
                           Mark as read
                         </button>

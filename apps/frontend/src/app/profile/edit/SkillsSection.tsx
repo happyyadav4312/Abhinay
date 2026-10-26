@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { X } from 'lucide-react';
 import { ApiError, profileApi } from '@/lib/api';
 import { skillFormSchema, type SkillFormValues } from '@/lib/validation';
 import { Alert, Button, Card, EmptyState, Field, Input } from '@/components/ui';
@@ -73,7 +74,7 @@ export function SkillsSection({
 
   return (
     <Card>
-      <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-zinc-500">Skills</h2>
+      <h2 className="font-heading text-lg font-medium text-foreground mb-4">Skills</h2>
 
       {error ? <Alert>{error}</Alert> : null}
       {status ? <Alert tone="info">{status}</Alert> : null}
@@ -85,17 +86,17 @@ export function SkillsSection({
           {skills.map((skill) => (
             <li
               key={skill.id}
-              className="flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-800/60 py-1 pl-3 pr-1 text-sm text-zinc-200"
+              className="flex items-center gap-1.5 rounded-full border border-border bg-secondary/70 py-1 pl-3 pr-1.5 text-sm text-foreground shadow-2xs"
             >
-              {skill.name}
+              <span>{skill.name}</span>
               <button
                 type="button"
                 aria-label={`Remove ${skill.name}`}
                 disabled={removingId === skill.id}
                 onClick={() => void onRemove(skill)}
-                className="grid h-6 w-6 place-items-center rounded-full text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400 disabled:opacity-50"
+                className="grid h-5 w-5 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-50 transition-colors"
               >
-                ×
+                <X className="h-3.5 w-3.5" />
               </button>
             </li>
           ))}

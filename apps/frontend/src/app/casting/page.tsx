@@ -230,7 +230,7 @@ function CastingBrowse() {
     const { castingRoles, pagination } = result.page;
     body = (
       <>
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground tabular-nums">
           {pagination.total} open {pagination.total === 1 ? 'role' : 'roles'}
           {hasFilters ? ' match your search' : ''}
         </p>

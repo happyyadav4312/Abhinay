@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ApiError, profileApi } from '@/lib/api';
 import { ProfileView, RequireAuth } from '@/components/common';
-import { Alert, Button, Card, Spinner } from '@/components/ui';
+import { Alert, Button, buttonVariants, Card, Spinner } from '@/components/ui';
 import type { OwnProfile } from '@/types';
 
 function OwnProfileContent() {
@@ -46,7 +46,7 @@ function OwnProfileContent() {
   if (isLoading) {
     return (
       <div className="grid min-h-[40vh] place-items-center">
-        <Spinner className="h-6 w-6 text-brand-400" />
+        <Spinner className="h-6 w-6 text-primary" />
         <span className="sr-only">Loading your profile…</span>
       </div>
     );
@@ -70,7 +70,7 @@ function OwnProfileContent() {
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <h2 className="font-heading text-lg font-medium text-foreground">
               Private details
             </h2>
             <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
@@ -84,21 +84,22 @@ function OwnProfileContent() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/profile/edit"
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-700 shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className={buttonVariants({ size: 'sm' })}
             >
               Edit profile
             </Link>
             <Link
               href={publicUrl}
-              className="rounded-md border border-border bg-secondary/80 px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
             >
               View public page
             </Link>
             <Button
               variant="ghost"
+              size="sm"
               onClick={async () => {
                 await navigator.clipboard?.writeText(`${window.location.origin}${publicUrl}`);
                 setCopied(true);

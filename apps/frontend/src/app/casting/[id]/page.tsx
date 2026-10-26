@@ -41,18 +41,18 @@ function PostedBy({ poster }: { poster: CastingPoster }) {
       <CardContent className="flex items-center gap-3">
         <Avatar name={poster.name} photoUrl={poster.photoUrl} size="sm" />
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Posted by</p>
+          <p className="text-xs text-muted-foreground">Posted by</p>
           {poster.profileId ? (
             <Link
               href={`/profile/${poster.profileId}`}
-              className="font-medium text-zinc-100 underline-offset-4 hover:underline"
+              className="font-medium text-foreground underline-offset-4 hover:underline"
             >
               {poster.name}
             </Link>
           ) : (
-            <p className="font-medium text-zinc-100">{poster.name}</p>
+            <p className="font-medium text-foreground">{poster.name}</p>
           )}
-          <p className="text-sm text-zinc-400">{ROLE_LABELS[poster.role]}</p>
+          <p className="text-sm text-muted-foreground">{ROLE_LABELS[poster.role]}</p>
         </div>
       </CardContent>
     </Card>
@@ -63,8 +63,8 @@ function TextSection({ title, text }: { title: string; text: string }) {
   return (
     <Card>
       <CardContent>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-zinc-500">{title}</h2>
-        <p className="whitespace-pre-line text-sm leading-relaxed text-zinc-200">{text}</p>
+        <h2 className="font-heading mb-2 text-lg font-medium text-foreground">{title}</h2>
+        <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">{text}</p>
       </CardContent>
     </Card>
   );
@@ -136,10 +136,10 @@ function OwnerPanel({
   return (
     <Card>
       <CardContent className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+        <h2 className="font-heading text-lg font-medium text-foreground">
           Manage this role
         </h2>
-        <p className="text-sm text-zinc-300">{summary}</p>
+        <p className="text-sm text-muted-foreground">{summary}</p>
         {role.status === 'OPEN' && !role.acceptingApplications ? (
           <p className="text-sm text-amber-400">
             The application deadline has passed, so the role is no longer listed and takes no new
@@ -148,7 +148,7 @@ function OwnerPanel({
         ) : null}
         {role.status !== 'DRAFT' && role.applicationCount !== null ? (
           <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm text-zinc-300">
+            <p className="text-sm text-muted-foreground">
               {role.applicationCount === 1
                 ? '1 application so far.'
                 : `${role.applicationCount} applications so far.`}
@@ -164,8 +164,8 @@ function OwnerPanel({
         {error ? <Alert>{error}</Alert> : null}
 
         {confirming ? (
-          <div className="flex flex-col gap-3 rounded-lg border border-zinc-700 p-3">
-            <p className="text-sm text-zinc-200">
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card/60 p-4">
+            <p className="text-sm text-foreground">
               {confirming === 'close'
                 ? 'Close this role? It stops appearing in search and can’t be reopened.'
                 : 'Delete this draft? This can’t be undone.'}
@@ -312,24 +312,24 @@ function CastingRoleDetail({ id }: { id: string }) {
       <Card>
         <CardContent>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-[10rem_1fr]">
-            <dt className="text-zinc-500">Location</dt>
-            <dd className="text-zinc-200">{role.location}</dd>
-            <dt className="text-zinc-500">Compensation</dt>
-            <dd className="text-zinc-200">{role.compensation}</dd>
-            <dt className="text-zinc-500">Apply by</dt>
-            <dd className="text-zinc-200">
+            <dt className="text-muted-foreground">Location</dt>
+            <dd className="text-foreground font-medium">{role.location}</dd>
+            <dt className="text-muted-foreground">Compensation</dt>
+            <dd className="text-foreground font-medium">{role.compensation}</dd>
+            <dt className="text-muted-foreground">Apply by</dt>
+            <dd className="text-foreground font-medium">
               {role.applicationDeadline
                 ? formatCalendarDate(role.applicationDeadline)
                 : 'No deadline'}
             </dd>
-            <dt className="text-zinc-500">Posted</dt>
-            <dd className="text-zinc-200">
+            <dt className="text-muted-foreground">Posted</dt>
+            <dd className="text-foreground">
               {role.publishedAt ? formatDate(role.publishedAt) : 'Not published yet'}
             </dd>
             {role.closedAt ? (
               <>
-                <dt className="text-zinc-500">Closed</dt>
-                <dd className="text-zinc-200">{formatDate(role.closedAt)}</dd>
+                <dt className="text-muted-foreground">Closed</dt>
+                <dd className="text-foreground">{formatDate(role.closedAt)}</dd>
               </>
             ) : null}
           </dl>

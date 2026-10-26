@@ -85,7 +85,7 @@ export function PhotoSection({
 
   return (
     <Card>
-      <h2 className="mb-4 text-sm font-medium uppercase tracking-wide text-zinc-500">
+      <h2 className="font-heading text-lg font-medium text-foreground mb-4">
         Profile photo
       </h2>
 
@@ -94,7 +94,7 @@ export function PhotoSection({
 
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div>
-            <label htmlFor="photo" className="text-sm font-medium text-zinc-200">
+            <label htmlFor="photo" className="text-sm font-medium text-foreground">
               Choose an image
             </label>
             <input
@@ -104,9 +104,9 @@ export function PhotoSection({
               accept={ACCEPTED.join(',')}
               disabled={isBusy}
               onChange={(event) => pick(event.target.files?.[0] ?? null)}
-              className="mt-1.5 block w-full text-sm text-zinc-400 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-sm file:text-zinc-100 hover:file:bg-zinc-700"
+              className="mt-1.5 block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80 transition-colors"
             />
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               JPEG, PNG or WebP, up to 5 MB. Cropped to a 512×512 square.
             </p>
           </div>

@@ -29,7 +29,7 @@ export function Pager({
       ) : (
         <span />
       )}
-      <p className="text-sm text-zinc-400">
+      <p className="text-sm text-muted-foreground tabular-nums">
         Page {page} of {totalPages}
       </p>
       {page < totalPages ? (

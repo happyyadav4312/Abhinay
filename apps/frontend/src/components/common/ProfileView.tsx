@@ -39,10 +39,10 @@ export function ExperienceList({ experiences }: { experiences: Experience[] }) {
   return (
     <ol className="flex flex-col gap-4">
       {experiences.map((item) => (
-        <li key={item.id} className="border-l-2 border-border/80 pl-4">
+        <li key={item.id} className="border-l-2 border-border pl-4">
           <p className="font-medium text-foreground">{item.title}</p>
           <p className="text-sm text-muted-foreground">{item.organization}</p>
-          <p className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground/80">
+          <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
             {formatMonth(item.startDate)} — {item.endDate ? formatMonth(item.endDate) : 'Present'}
           </p>
           {item.description ? (
@@ -86,7 +86,7 @@ export function ProfileView({
       {children}
 
       <Card>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">About</h2>
+        <h2 className="font-heading text-lg font-medium text-foreground mb-2">About</h2>
         {profile.bio ? (
           <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">{profile.bio}</p>
         ) : (
@@ -95,26 +95,26 @@ export function ProfileView({
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Skills</h2>
+        <h2 className="font-heading text-lg font-medium text-foreground mb-3">Skills</h2>
         <SkillList skills={profile.skills} />
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Experience
+        <h2 className="font-heading text-lg font-medium text-foreground mb-3">
+          Experience &amp; Credits
         </h2>
         <ExperienceList experiences={profile.experiences} />
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Portfolio
+        <h2 className="font-heading text-lg font-medium text-foreground mb-3">
+          Portfolio &amp; Reels
         </h2>
         <PortfolioList items={profile.portfolio} />
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">CV</h2>
+        <h2 className="font-heading text-lg font-medium text-foreground mb-3">Curriculum Vitae</h2>
         {profile.resume ? (
           <p className="text-sm text-foreground">
             <a
@@ -125,7 +125,7 @@ export function ProfileView({
             >
               {profile.resume.fileName}
             </a>{' '}
-            <span className="text-muted-foreground">(PDF, {formatBytes(profile.resume.bytes)})</span>
+            <span className="text-muted-foreground tabular-nums">(PDF, {formatBytes(profile.resume.bytes)})</span>
           </p>
         ) : (
           <EmptyState>No CV uploaded yet.</EmptyState>

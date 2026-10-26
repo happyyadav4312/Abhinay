@@ -42,7 +42,7 @@ export function ApplyPanel({
       <Card>
         <CardContent className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <h2 className="font-heading text-lg font-medium text-foreground">
               Your application
             </h2>
             <ApplicationStatusBadge status={role.myApplication.status} />
@@ -105,8 +105,8 @@ export function ApplyPanel({
   return (
     <Card>
       <CardContent className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">Interested?</h2>
-        <p className="text-sm text-zinc-300">
+        <h2 className="font-heading text-lg font-medium text-foreground">Apply for this role</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
           Applying shares your public profile — photo, bio, skills and credits — with{' '}
           {role.postedBy.name}. You can apply to each role once, and an application can’t be
           withdrawn.
@@ -117,8 +117,8 @@ export function ApplyPanel({
         {error ? <Alert>{error}</Alert> : null}
 
         {confirming ? (
-          <div className="flex flex-col gap-3 rounded-lg border border-zinc-700 p-3">
-            <p className="text-sm text-zinc-200">
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card/60 p-4">
+            <p className="text-sm text-foreground font-medium">
               Apply for “{role.title}” with your public profile?
             </p>
             <div className="flex flex-wrap gap-2">

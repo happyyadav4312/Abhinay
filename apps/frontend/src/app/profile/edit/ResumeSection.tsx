@@ -74,16 +74,16 @@ export function ResumeSection({
 
   return (
     <Card>
-      <h2 className="mb-1 text-sm font-medium uppercase tracking-wide text-zinc-500">
-        CV / résumé
+      <h2 className="font-heading text-lg font-medium text-foreground mb-1">
+        Curriculum Vitae
       </h2>
-      <p className="mb-4 text-sm text-zinc-400">
+      <p className="mb-4 text-sm text-muted-foreground">
         Anyone who views your profile can open your CV, so leave out contact details you do not want
         to share publicly.
       </p>
 
       {resume ? (
-        <p className="mb-4 text-sm text-zinc-200">
+        <p className="mb-4 text-sm text-foreground">
           Current CV:{' '}
           <a
             href={resume.url}
@@ -93,15 +93,15 @@ export function ResumeSection({
           >
             {resume.fileName}
           </a>{' '}
-          <span className="text-zinc-500">({formatBytes(resume.bytes)})</span>
+          <span className="text-muted-foreground tabular-nums">({formatBytes(resume.bytes)})</span>
         </p>
       ) : (
-        <p className="mb-4 text-sm text-zinc-500">No CV uploaded yet.</p>
+        <p className="mb-4 text-sm text-muted-foreground">No CV uploaded yet.</p>
       )}
 
       <div className="flex flex-col gap-3">
         <div>
-          <label htmlFor="resume" className="text-sm font-medium text-zinc-200">
+          <label htmlFor="resume" className="text-sm font-medium text-foreground">
             {resume ? 'Replace with a new PDF' : 'Choose a PDF'}
           </label>
           <input
@@ -111,9 +111,9 @@ export function ResumeSection({
             accept="application/pdf"
             disabled={busy !== null}
             onChange={(event) => pick(event.target.files?.[0] ?? null)}
-            className="mt-1.5 block w-full text-sm text-zinc-400 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-sm file:text-zinc-100 hover:file:bg-zinc-700"
+            className="mt-1.5 block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80 transition-colors"
           />
-          <p className="mt-1 text-xs text-zinc-500">PDF only, up to {POLICY.label}.</p>
+          <p className="mt-1 text-xs text-muted-foreground">PDF only, up to {POLICY.label}.</p>
         </div>
 
         {error ? <Alert>{error}</Alert> : null}

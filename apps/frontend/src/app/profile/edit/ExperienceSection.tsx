@@ -136,9 +136,9 @@ export function ExperienceSection({
   return (
     <Card>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">Experience</h2>
+        <h2 className="font-heading text-lg font-medium text-foreground">Experience</h2>
         {!isFormOpen ? (
-          <Button type="button" variant="secondary" onClick={openCreate}>
+          <Button type="button" variant="secondary" size="sm" onClick={openCreate}>
             Add credit
           </Button>
         ) : null}
@@ -153,25 +153,26 @@ export function ExperienceSection({
           {experiences.map((entry) => (
             <li
               key={entry.id}
-              className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-zinc-800 p-3"
+              className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card/60 p-3"
             >
               <div className="min-w-0">
-                <p className="font-medium text-zinc-100">{entry.title}</p>
-                <p className="text-sm text-zinc-400">{entry.organization}</p>
-                <p className="mt-0.5 text-xs uppercase tracking-wide text-zinc-500">
+                <p className="font-medium text-foreground">{entry.title}</p>
+                <p className="text-sm text-muted-foreground">{entry.organization}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
                   {formatRange(entry)}
                 </p>
               </div>
               <div className="flex gap-1">
-                <Button type="button" variant="ghost" onClick={() => openEdit(entry)}>
+                <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(entry)}>
                   Edit
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
+                  size="sm"
                   isLoading={deletingId === entry.id}
                   onClick={() => void onDelete(entry)}
-                  className="text-red-300 hover:bg-red-500/10"
+                  className="text-destructive hover:bg-destructive/10"
                 >
                   Delete
                 </Button>
@@ -186,9 +187,9 @@ export function ExperienceSection({
           onSubmit={handleSubmit(onSubmit)}
           noValidate
           aria-label={editingId ? 'Edit credit' : 'New credit'}
-          className="mt-4 flex flex-col gap-4 rounded-md border border-zinc-800 bg-zinc-950/40 p-4"
+          className="mt-4 flex flex-col gap-4 rounded-lg border border-border bg-card/60 p-4"
         >
-          <p className="text-sm font-medium text-zinc-200">
+          <p className="font-heading text-base font-medium text-foreground">
             {editingId ? 'Edit credit' : 'New credit'}
           </p>
 

@@ -11,11 +11,13 @@ function SettingsContent() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-2xl flex-col gap-6">
-      <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Account settings</h1>
-      <p className="mb-6 mt-1 text-sm text-muted-foreground">
-        Read-only account information. Editable details live on your profile.
-      </p>
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+      <div>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Account settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Read-only account information. Editable details live on your profile.
+        </p>
+      </div>
 
       <Card>
         <dl className="grid grid-cols-1 gap-y-4 sm:grid-cols-[10rem_1fr] sm:gap-y-3">
@@ -29,7 +31,7 @@ function SettingsContent() {
           <dd className="text-sm text-foreground">{ROLE_LABELS[user.role]}</dd>
 
           <dt className="text-sm text-muted-foreground">Member since</dt>
-          <dd className="text-sm text-foreground">
+          <dd className="text-sm text-foreground tabular-nums">
             {new Intl.DateTimeFormat('en-GB', { dateStyle: 'long' }).format(
               new Date(user.createdAt)
             )}

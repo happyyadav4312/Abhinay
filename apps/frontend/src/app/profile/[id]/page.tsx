@@ -57,7 +57,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
   if (status === 'loading') {
     return (
       <div className="grid min-h-[40vh] place-items-center">
-        <Spinner className="h-6 w-6 text-brand-400" />
+        <Spinner className="h-6 w-6 text-primary" />
         <span className="sr-only">Loading profile…</span>
       </div>
     );
@@ -66,13 +66,13 @@ export default function PublicProfilePage({ params }: { params: Promise<{ id: st
   if (status === 'notFound') {
     return (
       <Card className="mx-auto max-w-md text-center">
-        <h1 className="text-lg font-semibold text-zinc-100">Profile not found</h1>
-        <p className="mt-2 text-sm text-zinc-400">
+        <h1 className="font-heading text-xl font-semibold text-foreground">Profile not found</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           This profile does not exist, or the link is incorrect.
         </p>
         <Link
           href="/"
-          className="mt-4 inline-block text-sm text-brand-400 underline underline-offset-4"
+          className="mt-4 inline-block text-sm text-primary underline underline-offset-4"
         >
           Go to the home page
         </Link>

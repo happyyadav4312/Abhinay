@@ -203,6 +203,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    scrollbar-gutter: stable;
   }
   h1, h2, h3, h4, .font-heading {
     font-family: var(--font-serif);
@@ -212,19 +214,36 @@
   p, li {
     text-wrap: pretty;
   }
+
+  /* Refined custom scrollbar matching cinematic dark palette */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.35 0.015 65) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.32 0.012 65);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.42 0.015 65);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
 }
 
-/* Hero accent on the home page: luminous warm gold burnish. */
-.gradient-text {
-  background: linear-gradient(
-    135deg,
-    oklch(0.88 0.07 75),
-    oklch(0.78 0.09 75),
-    oklch(0.65 0.11 70)
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* Tabular figures for numbers, counts, and dates */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 /* "API is up" status dot on the home page. Green means healthy in any theme. */
