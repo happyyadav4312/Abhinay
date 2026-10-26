@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { Role } from '@prisma/client';
-import { applyToCastingRoleController } from '../controllers/application.controller';
+import {
+  applyToCastingRoleController,
+  updateApplicationStatusController,
+} from '../controllers/application.controller';
 import {
   changeCastingRoleStatusController,
   createCastingRoleController,
@@ -88,6 +91,16 @@ router.post(
   requireTrustedOrigin,
   asyncHandler(authenticate),
   asyncHandler(applyToCastingRoleController)
+);
+
+// ── Application status updates (the role's author) ─────
+// PATCH /casting/:id/applications/:applicationId/status — WBS 1.3.
+router.patch(
+  '/:id/applications/:applicationId/status',
+  requireTrustedOrigin,
+  asyncHandler(authenticate),
+  canPostCasting,
+  asyncHandler(updateApplicationStatusController)
 );
 
 // ── Applicants and shortlist folders (the role's author) ──

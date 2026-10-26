@@ -59,8 +59,8 @@ function LoginForm() {
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Log in</h1>
-      <p className="mb-6 text-sm text-zinc-400">Welcome back to Abhinay.</p>
+      <h1 className="font-heading mb-1 text-3xl font-semibold tracking-tight text-foreground">Log in</h1>
+      <p className="mb-6 text-sm text-muted-foreground">Welcome back to Abhinay.</p>
 
       <Card>
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
@@ -94,9 +94,9 @@ function LoginForm() {
         </form>
       </Card>
 
-      <p className="mt-4 text-center text-sm text-zinc-400">
+      <p className="mt-4 text-center text-sm text-muted-foreground">
         New to Abhinay?{' '}
-        <Link href="/register" className="text-brand-400 underline underline-offset-4">
+        <Link href="/register" className="text-primary font-medium underline underline-offset-4 hover:opacity-85">
           Create an account
         </Link>
       </p>

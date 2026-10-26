@@ -5,6 +5,7 @@ import profileRoutes from './profile.routes';
 import castingRoutes from './casting.routes';
 import applicationRoutes from './application.routes';
 import adminRoutes from './admin.routes';
+import notificationRoutes from './notification.routes';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use('/profile', profileRoutes);
 router.use('/casting', castingRoutes);
 router.use('/applications', applicationRoutes);
 router.use('/admin', adminRoutes);
+router.use('/notifications', notificationRoutes);
 
 export default router;

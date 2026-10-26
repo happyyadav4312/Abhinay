@@ -278,12 +278,16 @@ function ApplicantCard({
   applicant,
   folders,
   pendingFolderId,
+  isUpdatingStatus,
   onToggle,
+  onUpdateStatus,
 }: {
   applicant: Applicant;
   folders: ShortlistFolder[];
   pendingFolderId: string | null;
+  isUpdatingStatus: boolean;
   onToggle: (folder: ShortlistFolder, filed: boolean) => void;
+  onUpdateStatus: (status: 'SHORTLISTED' | 'SELECTED' | 'REJECTED') => void;
 }) {
   const person = applicant.applicant;
 
@@ -317,12 +321,51 @@ function ApplicantCard({
             </div>
           </div>
 
+          {/* Status workflow actions */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-zinc-800/80">
+            <span className="text-xs font-medium text-zinc-400 mr-1">Move status:</span>
+            {applicant.status !== 'SHORTLISTED' && (
+              <button
+                type="button"
+                disabled={isUpdatingStatus}
+                onClick={() => onUpdateStatus('SHORTLISTED')}
+                className="rounded-md border border-amber-600/50 bg-amber-950/20 px-2 py-0.5 text-xs font-medium text-amber-300 hover:bg-amber-900/30 transition-colors disabled:opacity-50"
+              >
+                Shortlist
+              </button>
+            )}
+            {applicant.status !== 'SELECTED' && (
+              <button
+                type="button"
+                disabled={isUpdatingStatus}
+                onClick={() => onUpdateStatus('SELECTED')}
+                className="rounded-md border border-emerald-600/50 bg-emerald-950/20 px-2 py-0.5 text-xs font-medium text-emerald-300 hover:bg-emerald-900/30 transition-colors disabled:opacity-50"
+              >
+                Select
+              </button>
+            )}
+            {applicant.status !== 'REJECTED' && (
+              <button
+                type="button"
+                disabled={isUpdatingStatus}
+                onClick={() => onUpdateStatus('REJECTED')}
+                className="rounded-md border border-rose-600/50 bg-rose-950/20 px-2 py-0.5 text-xs font-medium text-rose-300 hover:bg-rose-900/30 transition-colors disabled:opacity-50"
+              >
+                Reject
+              </button>
+            )}
+            {isUpdatingStatus && (
+              <span className="text-xs text-zinc-400 animate-pulse ml-1">Updating…</span>
+            )}
+          </div>
+
           {folders.length > 0 ? (
             <div
               role="group"
               aria-label={`Folders for ${person.name}`}
-              className="flex flex-wrap gap-1.5"
+              className="flex flex-wrap gap-1.5 pt-1"
             >
+              <span className="text-xs font-medium text-zinc-500 mr-1 self-center">Folder:</span>
               {folders.map((folder) => {
                 const filed = applicant.folderIds.includes(folder.id);
                 const pending = pendingFolderId === folder.id;
@@ -367,6 +410,7 @@ function Applicants({ id }: { id: string }) {
   const [listLoad, setListLoad] = useState<ApplicantsLoad | null>(null);
   const [allTotal, setAllTotal] = useState<number | null>(null);
   const [pending, setPending] = useState<{ applicationId: string; folderId: string } | null>(null);
+  const [statusPendingId, setStatusPendingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const roleKey = `${id}|${roleReload}`;
@@ -515,6 +559,27 @@ function Applicants({ id }: { id: string }) {
     });
   }
 
+  async function handleStatusChange(
+    applicant: Applicant,
+    status: 'SHORTLISTED' | 'SELECTED' | 'REJECTED'
+  ) {
+    if (statusPendingId) return;
+    setStatusPendingId(applicant.applicationId);
+    setActionError(null);
+    try {
+      const { applicant: updated } = await castingApi.updateApplicationStatus(
+        role.id,
+        applicant.applicationId,
+        status
+      );
+      replaceApplicant(updated);
+    } catch (caught) {
+      setActionError(messageOf(caught, 'Could not update applicant status. Please try again.'));
+    } finally {
+      setStatusPendingId(null);
+    }
+  }
+
   let body: React.ReactNode;
   if (listLoad === null || listLoad.key !== listKey) {
     body = <LoadingState label="Loading applicants…" />;
@@ -548,7 +613,9 @@ function Applicants({ id }: { id: string }) {
               pendingFolderId={
                 pending?.applicationId === applicant.applicationId ? pending.folderId : null
               }
+              isUpdatingStatus={statusPendingId === applicant.applicationId}
               onToggle={(folder, filed) => void toggle(applicant, folder, filed)}
+              onUpdateStatus={(status) => void handleStatusChange(applicant, status)}
             />
           ))}
         </ul>
@@ -568,14 +635,14 @@ function Applicants({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href={`/casting/${role.id}`} className="text-sm text-zinc-400 hover:text-zinc-200">
+      <Link href={`/casting/${role.id}`} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
         ← Back to the role
       </Link>
 
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Applicants</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          {role.title} · casting for {ROLE_LABELS[role.seekingRole]}
+        <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Applicants</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {role.title} · casting for <span className="font-medium text-primary">{ROLE_LABELS[role.seekingRole]}</span>
         </p>
       </header>
 

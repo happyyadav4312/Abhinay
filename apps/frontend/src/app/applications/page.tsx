@@ -84,8 +84,10 @@ function MyApplications() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">My applications</h1>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            My applications
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Casting roles you have applied to, most recent first.
           </p>
         </div>

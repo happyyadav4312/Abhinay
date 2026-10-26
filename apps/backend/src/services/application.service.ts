@@ -1,15 +1,22 @@
-import { CastingRoleStatus, Prisma, Role } from '@prisma/client';
+import { ApplicationStatus, CastingRoleStatus, NotificationType, Prisma, Role } from '@prisma/client';
 import { prisma } from '../config/database';
 import { isOnOrAfterToday } from '../utils/calendar';
 import { conflict, ErrorCode, notEligible, notFound } from '../utils/errors';
-import { ListMyApplicationsQuery } from '../validators/application.validator';
+import {
+  ApplicationStatusTarget,
+  ListMyApplicationsQuery,
+} from '../validators/application.validator';
 import {
   ApplicationDto,
   applicationInclude,
+  ApplicantDto,
+  applicantInclude,
   PaginationDto,
   toApplication,
+  toApplicant,
   toPagination,
 } from './dto';
+import { createNotification } from './notification.service';
 
 export interface ApplicationPage {
   applications: ApplicationDto[];
@@ -130,4 +137,98 @@ export async function listMyApplications(
     applications: rows.map(toApplication),
     pagination: toPagination(query.page, query.pageSize, total),
   };
+}
+
+// ── Application Status Updates (WBS 1.3) ────────────────
+
+/**
+ * Map from target status to the NotificationType the applicant receives.
+ * APPLIED is never a target so it has no entry.
+ */
+const STATUS_NOTIFICATION_TYPE: Record<ApplicationStatusTarget, NotificationType> = {
+  SHORTLISTED: NotificationType.APPLICATION_SHORTLISTED,
+  SELECTED: NotificationType.APPLICATION_SELECTED,
+  REJECTED: NotificationType.APPLICATION_REJECTED,
+};
+
+const STATUS_NOTIFICATION_TITLE: Record<ApplicationStatusTarget, string> = {
+  SHORTLISTED: 'You have been shortlisted!',
+  SELECTED: 'Congratulations — you have been selected!',
+  REJECTED: 'Application update',
+};
+
+function statusNotificationMessage(
+  target: ApplicationStatusTarget,
+  roleTitle: string
+): string {
+  switch (target) {
+    case 'SHORTLISTED':
+      return `Your application to "${roleTitle}" has been shortlisted. The casting team is reviewing your profile.`;
+    case 'SELECTED':
+      return `Great news! You have been selected for "${roleTitle}". The casting team will be in touch soon.`;
+    case 'REJECTED':
+      return `Your application to "${roleTitle}" was not selected this time. Keep applying — new opportunities are posted regularly.`;
+  }
+}
+
+/**
+ * Update the status of an application. Only the **author** of the casting role
+ * may call this. The valid targets are SHORTLISTED, SELECTED, and REJECTED —
+ * never APPLIED (the initial state). Any transition between the three targets
+ * is allowed, so an author can shortlist, then select, or reject a previously
+ * shortlisted applicant.
+ *
+ * A notification is created for the applicant when the status changes.
+ * Setting the status to its current value is idempotent (no notification sent).
+ */
+export async function updateApplicationStatus(
+  userId: string,
+  castingRoleId: string,
+  applicationId: string,
+  target: ApplicationStatusTarget
+): Promise<ApplicantDto> {
+  // Verify the caller owns the casting role.
+  const role = await prisma.castingRole.findFirst({
+    where: { id: castingRoleId, createdById: userId },
+    select: { id: true, title: true },
+  });
+  if (!role) throw notFound('Casting role not found');
+
+  // Verify the application belongs to this role.
+  const application = await prisma.application.findFirst({
+    where: { id: applicationId, castingRoleId },
+    select: { id: true, status: true, applicantId: true },
+  });
+  if (!application) throw notFound('Application not found');
+
+  // Idempotent: if the status is already what was requested, return as-is.
+  const targetStatus = ApplicationStatus[target];
+  if (application.status === targetStatus) {
+    const current = await prisma.application.findUniqueOrThrow({
+      where: { id: applicationId },
+      include: applicantInclude,
+    });
+    return toApplicant(current);
+  }
+
+  // Perform the update.
+  await prisma.application.update({
+    where: { id: applicationId },
+    data: { status: targetStatus },
+  });
+
+  // Fire a notification to the applicant (WBS 1.3.2.2).
+  await createNotification({
+    recipientId: application.applicantId,
+    type: STATUS_NOTIFICATION_TYPE[target],
+    title: STATUS_NOTIFICATION_TITLE[target],
+    message: statusNotificationMessage(target, role.title),
+    relatedApplicationId: applicationId,
+  });
+
+  const updated = await prisma.application.findUniqueOrThrow({
+    where: { id: applicationId },
+    include: applicantInclude,
+  });
+  return toApplicant(updated);
 }

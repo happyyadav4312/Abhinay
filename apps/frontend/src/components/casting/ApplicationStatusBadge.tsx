@@ -2,10 +2,10 @@ import { cn } from '@/lib/utils';
 import { APPLICATION_STATUS_LABELS, type ApplicationStatus } from '@/types';
 
 const TONES: Record<ApplicationStatus, string> = {
-  APPLIED: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
+  APPLIED: 'border-primary/40 bg-primary/10 text-primary',
   SHORTLISTED: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
   SELECTED: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
-  REJECTED: 'border-zinc-600 bg-zinc-800/60 text-zinc-400',
+  REJECTED: 'border-border/60 bg-muted/60 text-muted-foreground',
 };
 
 export function ApplicationStatusBadge({

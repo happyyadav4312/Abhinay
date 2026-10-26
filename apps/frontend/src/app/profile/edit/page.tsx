@@ -149,7 +149,7 @@ function EditProfileContent() {
   if (isLoading) {
     return (
       <div className="grid min-h-[40vh] place-items-center">
-        <Spinner className="h-6 w-6 text-brand-400" />
+        <Spinner className="h-6 w-6 text-primary" />
         <span className="sr-only">Loading your profile…</span>
       </div>
     );
@@ -170,14 +170,14 @@ function EditProfileContent() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Edit profile</h1>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Edit profile</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Changes are saved to your account as soon as each section is submitted.
           </p>
         </div>
         <Link
           href="/profile"
-          className="rounded-md bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+          className="rounded-md border border-border bg-secondary/80 px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           Back to profile
         </Link>

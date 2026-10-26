@@ -109,8 +109,10 @@ function MyCastingList() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">My postings</h1>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            My postings
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Every casting role you have posted, including drafts only you can see.
           </p>
         </div>
@@ -130,8 +132,10 @@ function MyCastingList() {
               href={mineHref({ status: tab.status })}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'rounded-md px-3 py-1.5 text-sm',
-                active ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800/60'
+                'rounded-md px-3 py-1.5 text-sm transition-colors',
+                active
+                  ? 'border border-border/80 bg-secondary text-foreground font-medium shadow-2xs'
+                  : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
               )}
             >
               {tab.label}

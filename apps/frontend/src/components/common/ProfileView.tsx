@@ -24,7 +24,7 @@ export function SkillList({ skills }: { skills: Skill[] }) {
       {skills.map((skill) => (
         <li
           key={skill.id}
-          className="rounded-full border border-zinc-700 bg-zinc-800/60 px-3 py-1 text-sm text-zinc-200"
+          className="rounded-full border border-border bg-secondary/60 px-3 py-1 text-sm text-foreground"
         >
           {skill.name}
         </li>
@@ -39,14 +39,14 @@ export function ExperienceList({ experiences }: { experiences: Experience[] }) {
   return (
     <ol className="flex flex-col gap-4">
       {experiences.map((item) => (
-        <li key={item.id} className="border-l-2 border-zinc-800 pl-4">
-          <p className="font-medium text-zinc-100">{item.title}</p>
-          <p className="text-sm text-zinc-400">{item.organization}</p>
-          <p className="mt-0.5 text-xs uppercase tracking-wide text-zinc-500">
+        <li key={item.id} className="border-l-2 border-border/80 pl-4">
+          <p className="font-medium text-foreground">{item.title}</p>
+          <p className="text-sm text-muted-foreground">{item.organization}</p>
+          <p className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground/80">
             {formatMonth(item.startDate)} — {item.endDate ? formatMonth(item.endDate) : 'Present'}
           </p>
           {item.description ? (
-            <p className="mt-2 whitespace-pre-line text-sm text-zinc-300">{item.description}</p>
+            <p className="mt-2 whitespace-pre-line text-sm text-foreground/85 leading-relaxed">{item.description}</p>
           ) : null}
         </li>
       ))}
@@ -71,10 +71,14 @@ export function ProfileView({
       <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
         <Avatar name={profile.name} photoUrl={profile.photoUrl} size="lg" />
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">{profile.name}</h1>
-          <p className="text-sm text-brand-300">{ROLE_LABELS[profile.role]}</p>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            {profile.name}
+          </h1>
+          <p className="mt-0.5 text-xs font-semibold uppercase tracking-wider text-primary">
+            {ROLE_LABELS[profile.role]}
+          </p>
           {profile.location ? (
-            <p className="mt-1 text-sm text-zinc-400">{profile.location}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{profile.location}</p>
           ) : null}
         </div>
       </div>
@@ -82,37 +86,37 @@ export function ProfileView({
       {children}
 
       <Card>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-zinc-500">About</h2>
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">About</h2>
         {profile.bio ? (
-          <p className="whitespace-pre-line text-sm leading-relaxed text-zinc-200">{profile.bio}</p>
+          <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">{profile.bio}</p>
         ) : (
           <EmptyState>No bio yet.</EmptyState>
         )}
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">Skills</h2>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Skills</h2>
         <SkillList skills={profile.skills} />
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Experience
         </h2>
         <ExperienceList experiences={profile.experiences} />
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Portfolio
         </h2>
         <PortfolioList items={profile.portfolio} />
       </Card>
 
       <Card>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">CV</h2>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">CV</h2>
         {profile.resume ? (
-          <p className="text-sm text-zinc-200">
+          <p className="text-sm text-foreground">
             <a
               href={profile.resume.url}
               target="_blank"
@@ -121,7 +125,7 @@ export function ProfileView({
             >
               {profile.resume.fileName}
             </a>{' '}
-            <span className="text-zinc-500">(PDF, {formatBytes(profile.resume.bytes)})</span>
+            <span className="text-muted-foreground">(PDF, {formatBytes(profile.resume.bytes)})</span>
           </p>
         ) : (
           <EmptyState>No CV uploaded yet.</EmptyState>

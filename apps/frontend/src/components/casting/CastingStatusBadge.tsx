@@ -4,7 +4,7 @@ import { CASTING_STATUS_LABELS, type CastingRoleStatus } from '@/types';
 const TONES: Record<CastingRoleStatus, string> = {
   DRAFT: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
   OPEN: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
-  CLOSED: 'border-zinc-600 bg-zinc-800/60 text-zinc-400',
+  CLOSED: 'border-border/60 bg-muted/60 text-muted-foreground',
 };
 
 export function CastingStatusBadge({

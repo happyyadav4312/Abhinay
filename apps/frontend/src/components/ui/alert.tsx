@@ -12,9 +12,9 @@ const alertVariants = cva(
           'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current',
       },
       tone: {
-        error: 'border-red-500/40 bg-red-500/10 text-red-200',
+        error: 'border-destructive/40 bg-destructive/10 text-destructive',
         success: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200',
-        info: 'border-zinc-700 bg-zinc-800/50 text-zinc-300',
+        info: 'border-border bg-card/60 text-muted-foreground',
       },
     },
     defaultVariants: {

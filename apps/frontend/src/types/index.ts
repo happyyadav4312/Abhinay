@@ -268,3 +268,29 @@ export interface Applicant {
   };
   folderIds: string[];
 }
+
+// ── Notifications ───────────────────────────────────────
+
+export const NOTIFICATION_TYPES = [
+  'APPLICATION_SHORTLISTED',
+  'APPLICATION_SELECTED',
+  'APPLICATION_REJECTED',
+] as const;
+
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  relatedApplicationId: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface NotificationPage {
+  notifications: Notification[];
+  pagination: Pagination;
+  unreadCount: number;
+}

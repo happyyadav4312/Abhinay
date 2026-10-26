@@ -39,8 +39,8 @@ export function MessageCard({
   return (
     <Card className="mx-auto max-w-md text-center">
       <CardContent>
-        <h1 className="text-lg font-semibold text-zinc-100">{title}</h1>
-        <p className="mt-2 text-sm text-zinc-400">{children}</p>
+        <h1 className="font-heading text-xl font-semibold text-foreground">{title}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{children}</p>
         {action ? <div className="mt-4 flex justify-center gap-2">{action}</div> : null}
       </CardContent>
     </Card>

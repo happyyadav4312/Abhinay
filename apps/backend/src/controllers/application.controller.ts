@@ -2,7 +2,11 @@ import { Request, Response } from 'express';
 import { sendSuccess } from '../utils/response';
 import { AuthenticatedRequest } from '../types';
 import { parseOrThrow, requireUuidParam } from '../validators/common';
-import { applySchema, listMyApplicationsQuerySchema } from '../validators/application.validator';
+import {
+  applySchema,
+  listMyApplicationsQuerySchema,
+  updateApplicationStatusSchema,
+} from '../validators/application.validator';
 import * as applicationService from '../services/application.service';
 
 /**
@@ -30,4 +34,28 @@ export async function listMyApplicationsController(req: Request, res: Response):
     await applicationService.listMyApplications(user.id, query),
     'Your applications retrieved'
   );
+}
+
+/**
+ * PATCH /api/v1/casting/:id/applications/:applicationId/status
+ *
+ * Role author only. Moves an application to SHORTLISTED, SELECTED, or REJECTED
+ * and notifies the applicant.
+ */
+export async function updateApplicationStatusController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const castingRoleId = requireUuidParam(req.params.id, 'Casting role');
+  const applicationId = requireUuidParam(req.params.applicationId, 'Application');
+  const { status } = parseOrThrow(updateApplicationStatusSchema, req.body);
+  const { user } = req as AuthenticatedRequest;
+
+  const applicant = await applicationService.updateApplicationStatus(
+    user.id,
+    castingRoleId,
+    applicationId,
+    status
+  );
+  sendSuccess(res, { applicant }, `Application status updated to ${status}`);
 }

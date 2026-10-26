@@ -7,40 +7,41 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.3211 0 0);
+  --background: oklch(0.985 0.005 80);
+  --foreground: oklch(0.18 0.015 65);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.3211 0 0);
+  --card-foreground: oklch(0.18 0.015 65);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.3211 0 0);
-  --primary: oklch(0.6361 0.1162 259.771);
-  --primary-foreground: oklch(0.9275 0.0274 199.5119);
-  --secondary: oklch(0.9674 0.0013 286.3752);
-  --secondary-foreground: oklch(0.4507 0.0152 255.5845);
-  --muted: oklch(0.9846 0.0017 247.8389);
-  --muted-foreground: oklch(0.5551 0.0147 266.6154);
-  --accent: oklch(0.9519 0.0151 235.3794);
-  --accent-foreground: oklch(0.3973 0.0838 268.4943);
+  --popover-foreground: oklch(0.18 0.015 65);
+  --primary: oklch(0.58 0.11 75);
+  --primary-foreground: oklch(0.98 0.005 80);
+  --secondary: oklch(0.94 0.01 80);
+  --secondary-foreground: oklch(0.24 0.02 65);
+  --muted: oklch(0.95 0.008 80);
+  --muted-foreground: oklch(0.48 0.02 65);
+  --accent: oklch(0.93 0.02 75);
+  --accent-foreground: oklch(0.28 0.05 75);
   --destructive: oklch(0.6322 0.131 21.4751);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9281 0.0042 271.3672);
-  --input: oklch(0.9281 0.0042 271.3672);
-  --ring: oklch(0.6361 0.1162 259.771);
-  --chart-1: oklch(0.6361 0.1162 259.771);
-  --chart-2: oklch(0.5639 0.1326 264.1092);
-  --chart-3: oklch(0.5092 0.136 266.6522);
-  --chart-4: oklch(0.4463 0.1123 268.9977);
-  --chart-5: oklch(0.3973 0.0838 268.4943);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.3211 0 0);
-  --sidebar-primary: oklch(0.6361 0.1162 259.771);
-  --sidebar-primary-foreground: oklch(0.9275 0.0274 199.5119);
-  --sidebar-accent: oklch(0.9519 0.0151 235.3794);
-  --sidebar-accent-foreground: oklch(0.3973 0.0838 268.4943);
-  --sidebar-border: oklch(0.9281 0.0042 271.3672);
-  --sidebar-ring: oklch(0.6361 0.1162 259.771);
+  --border: oklch(0.88 0.01 80);
+  --input: oklch(0.88 0.01 80);
+  --ring: oklch(0.58 0.11 75);
+  --chart-1: oklch(0.58 0.11 75);
+  --chart-2: oklch(0.50 0.10 75);
+  --chart-3: oklch(0.42 0.09 75);
+  --chart-4: oklch(0.35 0.08 75);
+  --chart-5: oklch(0.28 0.06 75);
+  --sidebar: oklch(0.985 0.005 80);
+  --sidebar-foreground: oklch(0.18 0.015 65);
+  --sidebar-primary: oklch(0.58 0.11 75);
+  --sidebar-primary-foreground: oklch(0.98 0.005 80);
+  --sidebar-accent: oklch(0.93 0.02 75);
+  --sidebar-accent-foreground: oklch(0.28 0.05 75);
+  --sidebar-border: oklch(0.88 0.01 80);
+  --sidebar-ring: oklch(0.58 0.11 75);
   --font-sans: Inter, sans-serif;
   --font-serif: Source Serif 4, serif;
+  --font-heading: Source Serif 4, serif;
   --font-mono: JetBrains Mono, monospace;
   --radius: 0.375rem;
   --shadow-x: 0;
@@ -62,40 +63,41 @@
 }
 
 .dark {
-  --background: oklch(0.2046 0 0);
-  --foreground: oklch(0.9219 0 0);
-  --card: oklch(0.2686 0 0);
-  --card-foreground: oklch(0.9219 0 0);
-  --popover: oklch(0.2686 0 0);
-  --popover-foreground: oklch(0.9219 0 0);
-  --primary: oklch(0.6361 0.1162 259.771);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.2686 0 0);
-  --secondary-foreground: oklch(0.9219 0 0);
-  --muted: oklch(0.2393 0 0);
-  --muted-foreground: oklch(0.7155 0 0);
-  --accent: oklch(0.3973 0.0838 268.4943);
-  --accent-foreground: oklch(0.889 0.0337 255.2155);
-  --destructive: oklch(0.6322 0.131 21.4751);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.3715 0 0);
-  --input: oklch(0.3715 0 0);
-  --ring: oklch(0.6361 0.1162 259.771);
-  --chart-1: oklch(0.7213 0.0872 254.2583);
-  --chart-2: oklch(0.6361 0.1162 259.771);
-  --chart-3: oklch(0.5639 0.1326 264.1092);
-  --chart-4: oklch(0.5092 0.136 266.6522);
-  --chart-5: oklch(0.4463 0.1123 268.9977);
-  --sidebar: oklch(0.2046 0 0);
-  --sidebar-foreground: oklch(0.9219 0 0);
-  --sidebar-primary: oklch(0.6361 0.1162 259.771);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.3973 0.0838 268.4943);
-  --sidebar-accent-foreground: oklch(0.889 0.0337 255.2155);
-  --sidebar-border: oklch(0.3715 0 0);
-  --sidebar-ring: oklch(0.6361 0.1162 259.771);
+  --background: oklch(0.135 0.008 65);
+  --foreground: oklch(0.95 0.01 80);
+  --card: oklch(0.185 0.01 65);
+  --card-foreground: oklch(0.95 0.01 80);
+  --popover: oklch(0.20 0.012 65);
+  --popover-foreground: oklch(0.95 0.01 80);
+  --primary: oklch(0.78 0.09 75);
+  --primary-foreground: oklch(0.14 0.02 65);
+  --secondary: oklch(0.22 0.012 65);
+  --secondary-foreground: oklch(0.90 0.015 80);
+  --muted: oklch(0.17 0.008 65);
+  --muted-foreground: oklch(0.70 0.02 75);
+  --accent: oklch(0.24 0.025 75);
+  --accent-foreground: oklch(0.88 0.06 75);
+  --destructive: oklch(0.65 0.18 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.26 0.012 65);
+  --input: oklch(0.26 0.012 65);
+  --ring: oklch(0.78 0.09 75);
+  --chart-1: oklch(0.78 0.09 75);
+  --chart-2: oklch(0.70 0.08 75);
+  --chart-3: oklch(0.60 0.07 75);
+  --chart-4: oklch(0.50 0.06 75);
+  --chart-5: oklch(0.40 0.05 75);
+  --sidebar: oklch(0.135 0.008 65);
+  --sidebar-foreground: oklch(0.95 0.01 80);
+  --sidebar-primary: oklch(0.78 0.09 75);
+  --sidebar-primary-foreground: oklch(0.14 0.02 65);
+  --sidebar-accent: oklch(0.24 0.025 75);
+  --sidebar-accent-foreground: oklch(0.88 0.06 75);
+  --sidebar-border: oklch(0.26 0.012 65);
+  --sidebar-ring: oklch(0.78 0.09 75);
   --font-sans: Inter, sans-serif;
   --font-serif: Source Serif 4, serif;
+  --font-heading: Source Serif 4, serif;
   --font-mono: JetBrains Mono, monospace;
   --radius: 0.375rem;
   --shadow-x: 0;
@@ -151,8 +153,8 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
-  /* CardTitle uses font-heading. */
-  --font-heading: var(--font-sans);
+  /* CardTitle and headings use font-heading (Source Serif 4). */
+  --font-heading: var(--font-serif);
 
   /* The brand CTA colour is the theme primary itself, so the app's brand-*
      buttons always match the shadcn <Button> and follow any change to it. */
@@ -174,41 +176,51 @@
 }
 
 /*
- * Brand scale, moved onto the new theme: the same hue as --primary (259.77 in
- * oklch), lightness stepped like a Tailwind palette, chroma kept as muted as
- * the theme's. Existing pages use brand-600/500 for primary actions,
- * brand-400 for links, spinners and focus outlines, and brand-300 for accents.
- * brand-600 is declared in the inline block above as var(--primary).
+ * Brand scale in warm cinematic gold/bronze (OKLCH hue ~75).
+ * Harmonizes with --primary (oklch 0.78 0.09 75 in dark mode).
  */
 @theme {
-  --color-brand-50: oklch(0.97 0.014 259.77);
-  --color-brand-100: oklch(0.932 0.032 259.77);
-  --color-brand-200: oklch(0.882 0.059 259.77);
-  --color-brand-300: oklch(0.809 0.096 259.77);
-  --color-brand-400: oklch(0.72 0.115 259.77);
-  --color-brand-500: oklch(0.68 0.118 259.77);
-  --color-brand-700: oklch(0.546 0.11 259.77);
-  --color-brand-800: oklch(0.465 0.095 259.77);
-  --color-brand-900: oklch(0.39 0.075 259.77);
-  --color-brand-950: oklch(0.29 0.055 259.77);
+  --color-brand-50: oklch(0.97 0.015 75);
+  --color-brand-100: oklch(0.93 0.035 75);
+  --color-brand-200: oklch(0.88 0.055 75);
+  --color-brand-300: oklch(0.82 0.075 75);
+  --color-brand-400: oklch(0.78 0.09 75);
+  --color-brand-500: oklch(0.74 0.095 75);
+  --color-brand-700: oklch(0.60 0.10 75);
+  --color-brand-800: oklch(0.48 0.08 75);
+  --color-brand-900: oklch(0.36 0.06 75);
+  --color-brand-950: oklch(0.24 0.04 75);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    caret-color: var(--primary);
+  }
+  ::selection {
+    background-color: oklch(0.78 0.09 75 / 0.28);
+    color: oklch(0.96 0.01 80);
   }
   body {
     @apply bg-background text-foreground;
   }
+  h1, h2, h3, h4, .font-heading {
+    font-family: var(--font-serif);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  p, li {
+    text-wrap: pretty;
+  }
 }
 
-/* Hero accent on the home page, drawn from the brand scale. */
+/* Hero accent on the home page: luminous warm gold burnish. */
 .gradient-text {
   background: linear-gradient(
     135deg,
-    var(--color-brand-300),
-    var(--color-brand-400),
-    var(--primary)
+    oklch(0.88 0.07 75),
+    oklch(0.78 0.09 75),
+    oklch(0.65 0.11 70)
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

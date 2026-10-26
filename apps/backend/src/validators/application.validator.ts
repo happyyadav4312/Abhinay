@@ -30,3 +30,21 @@ export const listMyApplicationsQuerySchema = z
   .strict();
 
 export type ListMyApplicationsQuery = z.infer<typeof listMyApplicationsQuerySchema>;
+
+/**
+ * The statuses a role author may move an application TO. APPLIED is the
+ * system-assigned initial status and is never a valid target.
+ */
+export const APPLICATION_STATUS_TARGETS = ['SHORTLISTED', 'SELECTED', 'REJECTED'] as const;
+export type ApplicationStatusTarget = (typeof APPLICATION_STATUS_TARGETS)[number];
+
+/** PATCH /casting/:id/applications/:applicationId/status */
+export const updateApplicationStatusSchema = z
+  .object({
+    status: z.enum(APPLICATION_STATUS_TARGETS, {
+      errorMap: () => ({
+        message: `Status must be one of: ${APPLICATION_STATUS_TARGETS.join(', ')}`,
+      }),
+    }),
+  })
+  .strict();

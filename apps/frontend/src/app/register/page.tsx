@@ -59,8 +59,8 @@ export default function RegisterPage() {
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight">Create your account</h1>
-      <p className="mb-6 text-sm text-zinc-400">Join the network of film professionals.</p>
+      <h1 className="font-heading mb-1 text-3xl font-semibold tracking-tight text-foreground">Create your account</h1>
+      <p className="mb-6 text-sm text-muted-foreground">Join the network of film professionals.</p>
 
       <Card>
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
@@ -139,9 +139,9 @@ export default function RegisterPage() {
         </form>
       </Card>
 
-      <p className="mt-4 text-center text-sm text-zinc-400">
+      <p className="mt-4 text-center text-sm text-muted-foreground">
         Already have an account?{' '}
-        <Link href="/login" className="text-brand-400 underline underline-offset-4">
+        <Link href="/login" className="text-primary font-medium underline underline-offset-4 hover:opacity-85">
           Log in
         </Link>
       </p>

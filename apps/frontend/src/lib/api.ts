@@ -8,6 +8,8 @@ import type {
   CastingRoleSummary,
   CastingSort,
   Experience,
+  Notification,
+  NotificationPage,
   OwnProfile,
   Pagination,
   PortfolioItem,
@@ -413,6 +415,20 @@ export const castingApi = {
     request<{ application: Application }>(`/casting/${encodeURIComponent(id)}/applications`, {
       method: 'POST',
     }),
+
+  /** Role author: update status of an application (SHORTLISTED, SELECTED, REJECTED). */
+  updateApplicationStatus: (
+    roleId: string,
+    applicationId: string,
+    status: 'SHORTLISTED' | 'SELECTED' | 'REJECTED'
+  ) =>
+    request<{ applicant: Applicant }>(
+      `/casting/${encodeURIComponent(roleId)}/applications/${encodeURIComponent(applicationId)}/status`,
+      {
+        method: 'PATCH',
+        body: { status },
+      }
+    ),
 };
 
 export interface ApplicationsMineParams {
@@ -487,3 +503,30 @@ export const shortlistApi = {
       { method: 'DELETE' }
     ),
 };
+
+export interface NotificationsListParams {
+  unreadOnly?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export const notificationsApi = {
+  /** The signed-in member's notifications, most recent first. */
+  list: (params: NotificationsListParams = {}, signal?: AbortSignal) =>
+    request<NotificationPage>(`/notifications${toQueryString(params)}`, { signal }),
+
+  /** Mark a single notification as read. */
+  markAsRead: (id: string) =>
+    request<{ notification: Notification }>(`/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'PATCH',
+    }),
+
+  /** Mark all unread notifications as read. */
+  markAllAsRead: () =>
+    request<{ count: number }>('/notifications/read-all', {
+      method: 'POST',
+    }),
+};
+
+export type { Notification, NotificationPage } from '@/types';
+

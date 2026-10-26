@@ -42,12 +42,12 @@ export function ApplyPanel({
       <Card>
         <CardContent className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Your application
             </h2>
             <ApplicationStatusBadge status={role.myApplication.status} />
           </div>
-          <p className="text-sm text-zinc-300">
+          <p className="text-sm text-foreground/90">
             You applied on {formatDate(role.myApplication.createdAt)}. {role.postedBy.name} can see
             your public profile.
           </p>

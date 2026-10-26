@@ -53,7 +53,7 @@ export default function HomePage() {
         <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
           The network behind the <span className="gradient-text">camera</span>.
         </h1>
-        <p className="mt-4 text-base leading-relaxed text-zinc-400">
+        <p className="mt-4 text-base leading-relaxed text-muted-foreground">
           Abhinay connects actors, directors, producers, camera operators, editors and crew. Build a
           professional profile, list your skills and credits, and share one link.
         </p>
@@ -61,13 +61,13 @@ export default function HomePage() {
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
             href="/register"
-            className="rounded-md bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+            className="rounded-md bg-brand-600 px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-brand-700 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             Create your profile
           </Link>
           <Link
             href="/login"
-            className="rounded-md bg-zinc-800 px-5 py-2.5 text-sm font-medium text-zinc-100 hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+            className="rounded-md border border-border bg-secondary/80 px-5 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             Log in
           </Link>
@@ -75,14 +75,14 @@ export default function HomePage() {
       </section>
 
       <section aria-labelledby="roles">
-        <h2 id="roles" className="mb-3 text-sm font-medium uppercase tracking-wide text-zinc-500">
+        <h2 id="roles" className="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">
           Built for every department
         </h2>
         <ul className="flex flex-wrap gap-2">
           {PUBLIC_ROLES.map((role) => (
             <li
               key={role}
-              className="rounded-full border border-zinc-800 bg-zinc-900/60 px-3 py-1 text-sm text-zinc-300"
+              className="rounded-full border border-border bg-card/70 px-3.5 py-1 text-sm text-foreground/90 shadow-2xs"
             >
               {ROLE_LABELS[role]}
             </li>

@@ -70,16 +70,16 @@ function OwnProfileContent() {
       <Card>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Private details
             </h2>
             <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-              <dt className="text-zinc-500">Email</dt>
-              <dd className="break-all text-zinc-200">{profile.email}</dd>
-              <dt className="text-zinc-500">Phone</dt>
-              <dd className="text-zinc-200">{profile.phone ?? '—'}</dd>
+              <dt className="text-muted-foreground">Email</dt>
+              <dd className="break-all text-foreground">{profile.email}</dd>
+              <dt className="text-muted-foreground">Phone</dt>
+              <dd className="text-foreground">{profile.phone ?? '—'}</dd>
             </dl>
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-xs text-muted-foreground">
               Email and phone are never shown on your public profile.
             </p>
           </div>
@@ -87,13 +87,13 @@ function OwnProfileContent() {
           <div className="flex flex-wrap gap-2">
             <Link
               href="/profile/edit"
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-700 shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               Edit profile
             </Link>
             <Link
               href={publicUrl}
-              className="rounded-md bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+              className="rounded-md border border-border bg-secondary/80 px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               View public page
             </Link>

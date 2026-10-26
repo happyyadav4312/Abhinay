@@ -16,9 +16,9 @@ function InstagramLinkCard({ item }: { item: PortfolioItem }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Watch “${title}” on Instagram (opens in a new tab)`}
-      className="group flex aspect-video w-full flex-col justify-between rounded-lg border border-zinc-800 bg-gradient-to-br from-fuchsia-600/25 via-rose-500/15 to-amber-400/20 p-4 transition-colors hover:border-zinc-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      className="group flex aspect-video w-full flex-col justify-between rounded-lg border border-border/80 bg-gradient-to-br from-fuchsia-600/20 via-rose-500/10 to-amber-400/15 p-4 transition-colors hover:border-primary/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
-      <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-zinc-300">
+      <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-foreground/90">
         <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current">
           <rect x="3" y="3" width="18" height="18" rx="5" strokeWidth="2" />
           <circle cx="12" cy="12" r="4" strokeWidth="2" />
@@ -26,7 +26,7 @@ function InstagramLinkCard({ item }: { item: PortfolioItem }) {
         </svg>
         Instagram reel
       </span>
-      <span className="text-sm font-medium text-zinc-100 group-hover:underline">
+      <span className="text-sm font-medium text-foreground group-hover:underline">
         Watch on Instagram ↗
       </span>
     </a>
@@ -59,7 +59,7 @@ export function PortfolioMedia({ item }: { item: PortfolioItem }) {
           width={item.width ?? undefined}
           height={item.height ?? undefined}
           loading="lazy"
-          className="aspect-[4/3] w-full rounded-lg border border-zinc-800 bg-zinc-900 object-cover"
+          className="aspect-[4/3] w-full rounded-lg border border-border/80 bg-muted/40 object-cover"
         />
       ) : item.kind === 'LINK' ? (
         <InstagramLinkCard item={item} />
@@ -70,11 +70,11 @@ export function PortfolioMedia({ item }: { item: PortfolioItem }) {
           controls
           preload="metadata"
           aria-label={caption}
-          className="aspect-video w-full rounded-lg border border-zinc-800 bg-black"
+          className="aspect-video w-full rounded-lg border border-border/80 bg-black"
         />
       )}
-      <figcaption className="text-xs text-zinc-400">
-        {item.title ?? <span className="text-zinc-600">Untitled</span>}
+      <figcaption className="text-xs text-muted-foreground">
+        {item.title ?? <span className="text-muted-foreground/60">Untitled</span>}
         {item.durationSeconds ? ` · ${formatDuration(item.durationSeconds)}` : ''}
       </figcaption>
     </figure>

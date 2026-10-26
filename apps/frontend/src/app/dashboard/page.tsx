@@ -15,28 +15,30 @@ function DashboardContent() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome, {user.name}</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          Signed in as <span className="text-zinc-200">{ROLE_LABELS[user.role]}</span>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          Welcome, {user.name}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Signed in as <span className="font-medium text-foreground">{ROLE_LABELS[user.role]}</span>
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
-          <h2 className="text-base font-medium text-zinc-100">Your professional profile</h2>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h2 className="font-heading text-lg font-medium text-foreground">Your professional profile</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Keep your photo, bio, skills and credits current so collaborators can find you.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href="/profile"
-              className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+              className="rounded-md bg-brand-600 px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-xs hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               View profile
             </Link>
             <Link
               href="/profile/edit"
-              className="rounded-md bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+              className="rounded-md border border-border bg-secondary/80 px-3.5 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               Edit profile
             </Link>
@@ -44,24 +46,24 @@ function DashboardContent() {
         </Card>
 
         <Card>
-          <h2 className="text-base font-medium text-zinc-100">Account</h2>
+          <h2 className="font-heading text-lg font-medium text-foreground">Account</h2>
           <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-            <dt className="text-zinc-500">Email</dt>
-            <dd className="truncate text-zinc-200">{user.email}</dd>
-            <dt className="text-zinc-500">Role</dt>
-            <dd className="text-zinc-200">{ROLE_LABELS[user.role]}</dd>
+            <dt className="text-muted-foreground">Email</dt>
+            <dd className="truncate text-foreground">{user.email}</dd>
+            <dt className="text-muted-foreground">Role</dt>
+            <dd className="text-foreground">{ROLE_LABELS[user.role]}</dd>
           </dl>
           <Link
             href="/settings"
-            className="mt-4 inline-block text-sm text-brand-400 underline underline-offset-4"
+            className="mt-4 inline-block text-sm text-primary underline underline-offset-4 hover:opacity-85"
           >
             Account settings
           </Link>
         </Card>
 
         <Card>
-          <h2 className="text-base font-medium text-zinc-100">Casting calls</h2>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h2 className="font-heading text-lg font-medium text-foreground">Casting calls</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             {isCastingPoster
               ? 'Post roles for your productions, then publish, edit or close them as casting progresses.'
               : 'Find open roles from producers and directors that match your craft.'}
@@ -71,13 +73,13 @@ function DashboardContent() {
               <>
                 <Link
                   href="/casting/create"
-                  className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+                  className="rounded-md bg-brand-600 px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-xs hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   Post a role
                 </Link>
                 <Link
                   href="/casting/mine"
-                  className="rounded-md bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+                  className="rounded-md border border-border bg-secondary/80 px-3.5 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   My postings
                 </Link>
@@ -87,8 +89,8 @@ function DashboardContent() {
               href="/casting"
               className={
                 isCastingPoster
-                  ? 'rounded-md px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400'
-                  : 'rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400'
+                  ? 'rounded-md border border-border bg-secondary/80 px-3.5 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+                  : 'rounded-md bg-brand-600 px-3.5 py-2 text-sm font-semibold text-primary-foreground shadow-xs hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
               }
             >
               Browse casting calls
@@ -97,14 +99,14 @@ function DashboardContent() {
         </Card>
 
         <Card>
-          <h2 className="text-base font-medium text-zinc-100">My applications</h2>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h2 className="font-heading text-lg font-medium text-foreground">My applications</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Track the casting roles you have applied to and where each one stands.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href="/applications"
-              className="rounded-md bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-100 hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
+              className="rounded-md border border-border bg-secondary/80 px-3.5 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               View my applications
             </Link>
@@ -119,7 +121,7 @@ function DashboardContent() {
       <section aria-labelledby="coming-soon">
         <h2
           id="coming-soon"
-          className="mb-2 text-sm font-medium uppercase tracking-wide text-zinc-500"
+          className="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground"
         >
           Coming in a later release
         </h2>
@@ -129,15 +131,15 @@ function DashboardContent() {
               <div
                 key={item.title}
                 aria-disabled="true"
-                className="cursor-not-allowed rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 p-5 opacity-60"
+                className="cursor-not-allowed rounded-xl border border-dashed border-border/80 bg-muted/30 p-5 opacity-60"
               >
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-medium text-zinc-300">{item.title}</h3>
-                  <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-[11px] uppercase tracking-wide text-zinc-500">
+                  <h3 className="font-heading text-base font-medium text-muted-foreground">{item.title}</h3>
+                  <span className="rounded-full border border-border px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                     Not available yet
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-zinc-500">{item.body}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
               </div>
             )
           )}

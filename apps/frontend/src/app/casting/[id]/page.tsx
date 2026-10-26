@@ -282,7 +282,7 @@ function CastingRoleDetail({ id }: { id: string }) {
     <article className="flex flex-col gap-6">
       <Link
         href={role.isOwner ? '/casting/mine' : '/casting'}
-        className="text-sm text-zinc-400 hover:text-zinc-200"
+        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         ← {role.isOwner ? 'My postings' : 'All casting calls'}
       </Link>
@@ -296,9 +296,9 @@ function CastingRoleDetail({ id }: { id: string }) {
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <CastingStatusBadge status={role.status} />
-          <span className="text-sm text-zinc-400">Casting for {ROLE_LABELS[role.seekingRole]}</span>
+          <span className="text-sm font-medium text-primary">Casting for {ROLE_LABELS[role.seekingRole]}</span>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight">{role.title}</h1>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">{role.title}</h1>
       </header>
 
       {role.status === 'CLOSED' && !role.isOwner ? (

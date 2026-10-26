@@ -13,7 +13,7 @@ export function ApplicationCard({ application }: { application: Application }) {
       <Card size="sm">
         <CardContent className="flex flex-col gap-2">
           <div className="flex flex-wrap items-start justify-between gap-2">
-            <h2 className="text-base font-medium text-zinc-100">
+            <h2 className="font-heading text-lg font-medium text-foreground">
               <Link
                 href={`/casting/${role.id}`}
                 className="underline-offset-4 hover:underline focus-visible:underline"
@@ -23,10 +23,10 @@ export function ApplicationCard({ application }: { application: Application }) {
             </h2>
             <ApplicationStatusBadge status={application.status} />
           </div>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             {ROLE_LABELS[role.seekingRole]} · {role.location} · {role.compensation}
           </p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground/80">
             Applied {formatDate(application.createdAt)} · Posted by {role.postedBy.name}
             {role.status === 'CLOSED' ? ' · Casting closed' : ''}
           </p>
