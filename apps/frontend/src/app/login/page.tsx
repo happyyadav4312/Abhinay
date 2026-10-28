@@ -62,7 +62,7 @@ function LoginForm() {
       <h1 className="font-heading mb-1 text-3xl font-semibold tracking-tight text-foreground">Log in</h1>
       <p className="mb-6 text-sm text-muted-foreground">Welcome back to Abhinay.</p>
 
-      <Card>
+      <Card className='p-4'>
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
           {formError ? <Alert>{formError}</Alert> : null}
 

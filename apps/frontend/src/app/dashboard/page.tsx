@@ -24,7 +24,7 @@ function DashboardContent() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
+        <Card className='p-4'>
           <h2 className="font-heading text-lg font-medium text-foreground">Your professional profile</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Keep your photo, bio, skills and credits current so collaborators can find you.

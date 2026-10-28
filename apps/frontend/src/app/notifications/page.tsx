@@ -157,7 +157,7 @@ function NotificationsList() {
                     : 'border-border/70 bg-card/40'
                 }`}
               >
-                <CardContent className="flex items-start gap-4 p-4">
+                <CardContent className="flex items-start gap-4">
                   <NotificationIcon type={notification.type} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
