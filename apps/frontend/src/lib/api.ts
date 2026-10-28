@@ -2,11 +2,15 @@ import type {
   Applicant,
   Application,
   ApplicationStatus,
+  Audition,
+  AuditionStatus,
   CastingRole,
   CastingRoleInput,
   CastingRoleStatus,
   CastingRoleSummary,
   CastingSort,
+  ChatConversation,
+  ChatMessage,
   Experience,
   Notification,
   NotificationPage,
@@ -528,5 +532,117 @@ export const notificationsApi = {
     }),
 };
 
-export type { Notification, NotificationPage } from '@/types';
+// ── Chat (WBS 1.4) ───────────────────────────────────────
+
+export interface ChatListMessagesParams {
+  page?: number;
+  pageSize?: number;
+}
+
+export const chatApi = {
+  createConversation: (
+    input:
+      | { applicationId: string; castingRoleId?: string; applicantId?: string }
+      | { castingRoleId: string; applicantId: string; applicationId?: string }
+  ) =>
+    request<{ conversation: ChatConversation }>('/chat/conversations', {
+      method: 'POST',
+      body: input,
+    }),
+
+  listConversations: (signal?: AbortSignal) =>
+    request<{ conversations: ChatConversation[] }>('/chat/conversations', { signal }),
+
+  getConversation: (id: string, signal?: AbortSignal) =>
+    request<{ conversation: ChatConversation }>(`/chat/conversations/${encodeURIComponent(id)}`, {
+      signal,
+    }),
+
+  getMessages: (id: string, params: ChatListMessagesParams = {}, signal?: AbortSignal) =>
+    request<{
+      items: ChatMessage[];
+      pagination: Pagination;
+    }>(`/chat/conversations/${encodeURIComponent(id)}/messages${toQueryString(params)}`, {
+      signal,
+    }),
+
+  sendMessage: (id: string, content: string) =>
+    request<{ message: ChatMessage }>(`/chat/conversations/${encodeURIComponent(id)}/messages`, {
+      method: 'POST',
+      body: { content },
+    }),
+
+  markAsRead: (id: string) =>
+    request<{ markedCount: number }>(`/chat/conversations/${encodeURIComponent(id)}/messages/read`, {
+      method: 'PATCH',
+    }),
+};
+
+// ── Auditions (WBS 1.5) ──────────────────────────────────
+
+export interface AuditionListParams {
+  status?: AuditionStatus;
+  page?: number;
+  pageSize?: number;
+}
+
+export const auditionApi = {
+  requestAudition: (input: {
+    castingRoleId: string;
+    applicationId: string;
+    instructions: string;
+    deadline?: string | null;
+  }) =>
+    request<{ audition: Audition }>('/auditions', {
+      method: 'POST',
+      body: input,
+    }),
+
+  submitVideo: (auditionId: string, videoFile: File, note?: string) => {
+    const formData = new FormData();
+    if (note && note.trim()) formData.append('note', note.trim());
+    formData.append('video', videoFile);
+    return request<{ audition: Audition }>(
+      `/auditions/${encodeURIComponent(auditionId)}/submissions`,
+      {
+        method: 'POST',
+        formData,
+      }
+    );
+  },
+
+  updateStatus: (auditionId: string, status: AuditionStatus) =>
+    request<{ audition: Audition }>(`/auditions/${encodeURIComponent(auditionId)}/status`, {
+      method: 'PATCH',
+      body: { status },
+    }),
+
+  getAudition: (id: string, signal?: AbortSignal) =>
+    request<{ audition: Audition }>(`/auditions/${encodeURIComponent(id)}`, { signal }),
+
+  listMine: (params: AuditionListParams = {}, signal?: AbortSignal) =>
+    request<{
+      items: Audition[];
+      pagination: Pagination;
+    }>(`/auditions/mine${toQueryString(params)}`, { signal }),
+
+  listForRole: (castingRoleId: string, params: AuditionListParams = {}, signal?: AbortSignal) =>
+    request<{
+      items: Audition[];
+      pagination: Pagination;
+    }>(`/casting/${encodeURIComponent(castingRoleId)}/auditions${toQueryString(params)}`, {
+      signal,
+    }),
+};
+
+export type {
+  Audition,
+  AuditionStatus,
+  AuditionSubmission,
+  ChatConversation,
+  ChatMessage,
+  Notification,
+  NotificationPage,
+} from '@/types';
+
 

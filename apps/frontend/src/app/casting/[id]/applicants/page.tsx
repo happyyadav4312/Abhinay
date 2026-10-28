@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, Plus } from 'lucide-react';
-import { ApiError, castingApi, shortlistApi, type ApplicantPage } from '@/lib/api';
+import { Check, MessageSquare, Plus, Video } from 'lucide-react';
+import { ApiError, castingApi, chatApi, shortlistApi, type ApplicantPage } from '@/lib/api';
 import {
   LIMITS,
   shortlistFolderFormSchema,
@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Avatar, ErrorState, LoadingState, MessageCard, RequireAuth } from '@/components/common';
 import { ApplicationStatusBadge, formatDate, Pager } from '@/components/casting';
+import { RequestAuditionModal } from '@/components/auditions/RequestAuditionModal';
 import {
   Alert,
   Button,
@@ -282,6 +283,8 @@ function ApplicantCard({
   isUpdatingStatus,
   onToggle,
   onUpdateStatus,
+  onStartChat,
+  onRequestAudition,
 }: {
   applicant: Applicant;
   folders: ShortlistFolder[];
@@ -289,6 +292,8 @@ function ApplicantCard({
   isUpdatingStatus: boolean;
   onToggle: (folder: ShortlistFolder, filed: boolean) => void;
   onUpdateStatus: (status: 'SHORTLISTED' | 'SELECTED' | 'REJECTED') => void;
+  onStartChat: () => void;
+  onRequestAudition: () => void;
 }) {
   const person = applicant.applicant;
 
@@ -323,40 +328,64 @@ function ApplicantCard({
           </div>
 
           {/* Status workflow actions */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-2.5 border-t border-border">
-            <span className="text-xs font-medium text-muted-foreground mr-1">Move status:</span>
-            {applicant.status !== 'SHORTLISTED' && (
-              <button
-                type="button"
-                disabled={isUpdatingStatus}
-                onClick={() => onUpdateStatus('SHORTLISTED')}
-                className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-              >
-                Shortlist
-              </button>
-            )}
-            {applicant.status !== 'SELECTED' && (
-              <button
-                type="button"
-                disabled={isUpdatingStatus}
-                onClick={() => onUpdateStatus('SELECTED')}
-                className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-              >
-                Select
-              </button>
-            )}
-            {applicant.status !== 'REJECTED' && (
-              <button
-                type="button"
-                disabled={isUpdatingStatus}
-                onClick={() => onUpdateStatus('REJECTED')}
-                className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-              >
-                Reject
-              </button>
-            )}
-            {isUpdatingStatus && (
-              <span className="text-xs text-muted-foreground animate-pulse ml-1">Updating…</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-border">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground mr-1">Move status:</span>
+              {applicant.status !== 'SHORTLISTED' && (
+                <button
+                  type="button"
+                  disabled={isUpdatingStatus}
+                  onClick={() => onUpdateStatus('SHORTLISTED')}
+                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                >
+                  Shortlist
+                </button>
+              )}
+              {applicant.status !== 'SELECTED' && (
+                <button
+                  type="button"
+                  disabled={isUpdatingStatus}
+                  onClick={() => onUpdateStatus('SELECTED')}
+                  className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                >
+                  Select
+                </button>
+              )}
+              {applicant.status !== 'REJECTED' && (
+                <button
+                  type="button"
+                  disabled={isUpdatingStatus}
+                  onClick={() => onUpdateStatus('REJECTED')}
+                  className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                >
+                  Reject
+                </button>
+              )}
+              {isUpdatingStatus && (
+                <span className="text-xs text-muted-foreground animate-pulse ml-1">Updating…</span>
+              )}
+            </div>
+
+            {/* Direct message & Audition triggers for Shortlisted or Selected */}
+            {(applicant.status === 'SHORTLISTED' || applicant.status === 'SELECTED') && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onStartChat}
+                  className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition-colors"
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  Chat
+                </button>
+                <button
+                  type="button"
+                  onClick={onRequestAudition}
+                  className="inline-flex items-center gap-1 rounded-md border border-purple-500/40 bg-purple-500/10 px-2.5 py-1 text-xs font-medium text-purple-300 hover:bg-purple-500/20 transition-colors"
+                >
+                  <Video className="h-3 w-3" />
+                  Audition
+                </button>
+              </div>
             )}
           </div>
 
@@ -419,6 +448,18 @@ function Applicants({ id }: { id: string }) {
   const [pending, setPending] = useState<{ applicationId: string; folderId: string } | null>(null);
   const [statusPendingId, setStatusPendingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [auditionApplicant, setAuditionApplicant] = useState<Applicant | null>(null);
+
+  async function startChat(applicant: Applicant) {
+    try {
+      const res = await chatApi.createConversation({
+        applicationId: applicant.applicationId,
+      });
+      router.push(`/messages/${res.conversation.id}`);
+    } catch (caught) {
+      setActionError(messageOf(caught, 'Could not start chat. Please try again.'));
+    }
+  }
 
   const roleKey = `${id}|${roleReload}`;
   const listKey = `${id}|${folderParam ?? ''}|${page}|${listReload}`;
@@ -623,6 +664,8 @@ function Applicants({ id }: { id: string }) {
               isUpdatingStatus={statusPendingId === applicant.applicationId}
               onToggle={(folder, filed) => void toggle(applicant, folder, filed)}
               onUpdateStatus={(status) => void handleStatusChange(applicant, status)}
+              onStartChat={() => void startChat(applicant)}
+              onRequestAudition={() => setAuditionApplicant(applicant)}
             />
           ))}
         </ul>
@@ -683,6 +726,19 @@ function Applicants({ id }: { id: string }) {
       <section aria-label={activeFolder ? `Applicants in ${activeFolder.name}` : 'All applicants'}>
         <div className="flex flex-col gap-3">{body}</div>
       </section>
+
+      {auditionApplicant && (
+        <RequestAuditionModal
+          open={Boolean(auditionApplicant)}
+          onClose={() => setAuditionApplicant(null)}
+          castingRoleId={role.id}
+          applicationId={auditionApplicant.applicationId}
+          applicantName={auditionApplicant.applicant.name}
+          onSuccess={() => {
+            setListReload((token) => token + 1);
+          }}
+        />
+      )}
     </div>
   );
 }

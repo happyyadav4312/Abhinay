@@ -1,5 +1,6 @@
 import {
   ApplicationStatus,
+  AuditionStatus,
   CastingRoleStatus,
   Experience,
   PortfolioItem,
@@ -500,3 +501,113 @@ export function toApplicant(application: ApplicationWithApplicant): ApplicantDto
     folderIds: application.shortlistEntries.map((entry) => entry.folderId),
   };
 }
+
+// ── Chat DTOs (WBS 1.4) ─────────────────────────────────
+
+export interface ChatMessageDto {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface ChatParticipantDto {
+  id: string;
+  name: string;
+  role: Role;
+  photoUrl: string | null;
+}
+
+export interface ChatConversationDto {
+  id: string;
+  castingRoleId: string;
+  castingRoleTitle: string;
+  participantA: ChatParticipantDto;
+  participantB: ChatParticipantDto;
+  lastMessage: ChatMessageDto | null;
+  unreadCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function toChatMessage(message: {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  readAt: Date | null;
+  createdAt: Date;
+  sender?: { name: string };
+}): ChatMessageDto {
+  return {
+    id: message.id,
+    conversationId: message.conversationId,
+    senderId: message.senderId,
+    senderName: message.sender?.name ?? '',
+    content: message.content,
+    readAt: message.readAt ? message.readAt.toISOString() : null,
+    createdAt: message.createdAt.toISOString(),
+  };
+}
+
+// ── Audition DTOs (WBS 1.5) ─────────────────────────────
+
+export interface AuditionSubmissionDto {
+  id: string;
+  auditionId: string;
+  url: string;
+  thumbnailUrl: string | null;
+  bytes: number;
+  durationSeconds: number | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface AuditionDto {
+  id: string;
+  castingRoleId: string;
+  castingRoleTitle: string;
+  applicationId: string;
+  instructions: string;
+  deadline: string | null;
+  status: AuditionStatus;
+  applicant: {
+    id: string;
+    name: string;
+    role: Role;
+    photoUrl: string | null;
+  };
+  roleAuthor: {
+    id: string;
+    name: string;
+  };
+  submissions: AuditionSubmissionDto[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function toAuditionSubmission(sub: {
+  id: string;
+  auditionId: string;
+  url: string;
+  thumbnailUrl: string | null;
+  bytes: number;
+  durationSeconds: number | null;
+  note: string | null;
+  createdAt: Date;
+}): AuditionSubmissionDto {
+  return {
+    id: sub.id,
+    auditionId: sub.auditionId,
+    url: sub.url,
+    thumbnailUrl: sub.thumbnailUrl,
+    bytes: sub.bytes,
+    durationSeconds: sub.durationSeconds,
+    note: sub.note,
+    createdAt: sub.createdAt.toISOString(),
+  };
+}
+

@@ -2,7 +2,6 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { ApplicationStatus, Role } from '@prisma/client';
 import app from '../../src/app';
-import { prisma } from '../../src/config/database';
 import {
   applyTo,
   bearer,

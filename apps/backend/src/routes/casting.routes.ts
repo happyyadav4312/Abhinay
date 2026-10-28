@@ -22,6 +22,7 @@ import {
   renameFolderController,
   unfileApplicantController,
 } from '../controllers/shortlist.controller';
+import { listAuditionsForRoleController } from '../controllers/audition.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { requireTrustedOrigin } from '../middleware/origin.middleware';
 import { requireRole } from '../middleware/role.middleware';
@@ -152,6 +153,13 @@ router.delete(
   asyncHandler(authenticate),
   canPostCasting,
   asyncHandler(unfileApplicantController)
+);
+
+router.get(
+  '/:id/auditions',
+  asyncHandler(authenticate),
+  canPostCasting,
+  asyncHandler(listAuditionsForRoleController)
 );
 
 export default router;

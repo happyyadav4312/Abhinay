@@ -3,6 +3,7 @@ import app from './app';
 import { env } from './config/env';
 import { prisma } from './config/database';
 import { ensureStorageReady, mediaStorage, sweepStaleUploads } from './config/storage';
+import { setupWebSocket } from './websocket/ws';
 
 let server: Server | undefined;
 let sweepTimer: NodeJS.Timeout | undefined;
@@ -55,6 +56,8 @@ async function start(): Promise<void> {
       ].join('\n')
     );
   });
+
+  setupWebSocket(server);
 }
 
 async function shutdown(signal: string): Promise<void> {

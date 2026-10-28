@@ -275,6 +275,10 @@ export const NOTIFICATION_TYPES = [
   'APPLICATION_SHORTLISTED',
   'APPLICATION_SELECTED',
   'APPLICATION_REJECTED',
+  'CHAT_MESSAGE_RECEIVED',
+  'AUDITION_REQUESTED',
+  'AUDITION_SUBMITTED',
+  'AUDITION_REVIEWED',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -294,3 +298,89 @@ export interface NotificationPage {
   pagination: Pagination;
   unreadCount: number;
 }
+
+// ── Chat (WBS 1.4) ───────────────────────────────────────
+
+export interface ChatParticipant {
+  id: string;
+  name: string;
+  role: Role;
+  photoUrl: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface ChatConversation {
+  id: string;
+  castingRoleId: string;
+  castingRoleTitle: string;
+  participantA: ChatParticipant;
+  participantB: ChatParticipant;
+  lastMessage: ChatMessage | null;
+  unreadCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Auditions (WBS 1.5) ──────────────────────────────────
+
+export const AUDITION_STATUSES = [
+  'PENDING',
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'APPROVED',
+  'REJECTED',
+] as const;
+
+export type AuditionStatus = (typeof AUDITION_STATUSES)[number];
+
+export const AUDITION_STATUS_LABELS: Record<AuditionStatus, string> = {
+  PENDING: 'Pending Submission',
+  SUBMITTED: 'Submitted',
+  UNDER_REVIEW: 'Under Review',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+};
+
+export interface AuditionSubmission {
+  id: string;
+  auditionId: string;
+  url: string;
+  thumbnailUrl: string | null;
+  bytes: number;
+  durationSeconds: number | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface Audition {
+  id: string;
+  castingRoleId: string;
+  castingRoleTitle: string;
+  applicationId: string;
+  instructions: string;
+  deadline: string | null;
+  status: AuditionStatus;
+  applicant: {
+    id: string;
+    name: string;
+    role: Role;
+    photoUrl: string | null;
+  };
+  roleAuthor: {
+    id: string;
+    name: string;
+  };
+  submissions: AuditionSubmission[];
+  createdAt: string;
+  updatedAt: string;
+}
+

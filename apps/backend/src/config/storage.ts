@@ -28,7 +28,7 @@ import { env } from './env';
 export const MEDIA_ROUTE_PREFIX = '/media';
 
 /** One folder per kind of file, in both drivers. */
-export const MEDIA_CATEGORIES = ['profile-photos', 'resumes', 'portfolio-photos', 'reels'] as const;
+export const MEDIA_CATEGORIES = ['profile-photos', 'resumes', 'portfolio-photos', 'reels', 'auditions'] as const;
 export type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
 
 /** Kept for photos stored before Cloudinary: `profiles.profile_image` holds a key under this path. */

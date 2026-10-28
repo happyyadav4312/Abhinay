@@ -87,6 +87,20 @@ export function SiteHeader() {
                 Applications
               </Link>
               <Link
+                href="/messages"
+                aria-current={isNavActive('/messages') ? 'page' : undefined}
+                className={navLinkClass('/messages')}
+              >
+                Messages
+              </Link>
+              <Link
+                href="/auditions"
+                aria-current={isNavActive('/auditions') ? 'page' : undefined}
+                className={navLinkClass('/auditions')}
+              >
+                Auditions
+              </Link>
+              <Link
                 href="/profile"
                 aria-current={isNavActive('/profile') ? 'page' : undefined}
                 className={navLinkClass('/profile')}

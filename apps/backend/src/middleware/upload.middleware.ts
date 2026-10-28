@@ -77,3 +77,6 @@ export const uploadResume = diskUpload('resume', MEDIA_POLICY.RESUME);
 export const uploadPortfolioPhoto = diskUpload('photo', MEDIA_POLICY.PORTFOLIO_PHOTO);
 /** POST /profile/portfolio/videos — field `video`, optional text field `title`. */
 export const uploadReel = diskUpload('video', MEDIA_POLICY.REEL);
+/** POST /auditions/:id/submissions — field `video`, optional text field `note`. */
+export const uploadAuditionVideo = diskUpload('video', MEDIA_POLICY.REEL);
+

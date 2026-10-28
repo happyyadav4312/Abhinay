@@ -113,38 +113,36 @@ function DashboardContent() {
         </Card>
       </div>
 
-      {/*
-        Placeholders for later WBS modules. They are visibly disabled and link
-        nowhere — no routes, APIs or tables exist behind them.
-      */}
-      <section aria-labelledby="coming-soon">
-        <h2
-          id="coming-soon"
-          className="mb-3 font-heading text-lg font-medium text-foreground"
-        >
-          Coming in a later release
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {[{ title: 'Messages', body: 'Talk directly with directors, producers and crew.' }].map(
-            (item) => (
-              <div
-                key={item.title}
-                aria-disabled="true"
-                className="cursor-not-allowed rounded-xl border border-dashed border-border/80 bg-muted/30 p-5 opacity-60"
-              >
-                <div className="flex items-center gap-2">
-                  <h3 className="font-heading text-base font-medium text-muted-foreground">{item.title}</h3>
-                  <span className="rounded-full border border-border px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Not available yet
-                  </span>
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
-              </div>
-            )
-          )}
-        </div>
-      </section>
-    </div>
+        <Card>
+          <h2 className="font-heading text-lg font-medium text-foreground">Direct Messages</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Real-time chat with casting directors and shortlisted applicants.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/messages"
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              Open messages
+            </Link>
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="font-heading text-lg font-medium text-foreground">Auditions & Self-Tapes</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Upload audition videos, review take submissions, and manage casting callbacks.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/auditions"
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              View auditions
+            </Link>
+          </div>
+        </Card>
+      </div>
   );
 }
 
