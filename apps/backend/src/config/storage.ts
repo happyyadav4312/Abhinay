@@ -147,7 +147,7 @@ export class LocalMediaStorage implements MediaStorage {
 const MB = 1000 * 1000;
 
 /** Videos go up in chunks, so one slow chunk can be retried by the SDK rather than the whole file. */
-const VIDEO_CHUNK_BYTES = 20 * MB;
+const VIDEO_CHUNK_BYTES = 50 * MB;
 const UPLOAD_TIMEOUT_MS = { image: 2 * 60_000, raw: 2 * 60_000, video: 10 * 60_000 } as const;
 
 /** What the Cloudinary SDK rejects with: an `{ error: { message, http_code } }` wrapper or an Error. */

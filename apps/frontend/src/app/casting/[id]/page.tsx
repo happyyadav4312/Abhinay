@@ -159,6 +159,12 @@ function OwnerPanel({
             >
               Review applicants &amp; shortlists
             </Link>
+            <Link
+              href={`/casting/${role.id}/auditions`}
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              Review auditions
+            </Link>
           </div>
         ) : null}
         {error ? <Alert>{error}</Alert> : null}

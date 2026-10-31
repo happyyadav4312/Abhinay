@@ -91,6 +91,9 @@ export function VideoUpload({ onUpload, disabled }: VideoUploadProps) {
           <p className="text-xs text-stone-400 mt-1">
             MP4, MOV, or WebM up to 100MB (max 5 minutes)
           </p>
+          <p className="text-[11px] text-stone-500 mt-1">
+            Large videos can take a few minutes to upload and process.
+          </p>
           <input
             ref={fileInputRef}
             type="file"
@@ -162,7 +165,7 @@ export function VideoUpload({ onUpload, disabled }: VideoUploadProps) {
               {isUploading ? (
                 <>
                   <Spinner className="h-4 w-4 mr-2" />
-                  <span>Uploading...</span>
+                  <span>Uploading and processing...</span>
                 </>
               ) : (
                 'Submit Tape'

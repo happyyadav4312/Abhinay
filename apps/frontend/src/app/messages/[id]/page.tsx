@@ -8,12 +8,13 @@ import { ConversationList } from '@/components/chat/ConversationList';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { Avatar } from '@/components/common/Avatar';
-import { chatApi } from '@/lib/api';
+import { ApiError, chatApi } from '@/lib/api';
 import { ChatConversation, ChatMessage, ROLE_LABELS } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Spinner } from '@/components/ui/spinner';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -38,6 +39,7 @@ export default function ChatRoomPage({ params }: PageProps) {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +53,7 @@ export default function ChatRoomPage({ params }: PageProps) {
 
     Promise.all([
       chatApi.getConversation(conversationId),
-      chatApi.getMessages(conversationId, { pageSize: 100 }),
+      chatApi.getMessages(conversationId, { pageSize: 50 }),
       chatApi.listConversations(),
     ])
       .then(([convRes, msgsRes, listRes]) => {
@@ -61,7 +63,10 @@ export default function ChatRoomPage({ params }: PageProps) {
         setConversations(listRes.conversations);
         markAsRead(conversationId);
       })
-      .catch(() => undefined)
+      .catch((caught: unknown) => {
+        if (!active) return;
+        setError(caught instanceof ApiError ? caught.message : 'Could not load this conversation.');
+      })
       .finally(() => {
         if (active) {
           setLoading(false);
@@ -218,6 +223,19 @@ export default function ChatRoomPage({ params }: PageProps) {
                 {loading ? (
                   <div className="h-full flex items-center justify-center">
                     <Spinner className="h-6 w-6 text-amber-500" />
+                  </div>
+                ) : error ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center text-stone-400">
+                    <p className="text-sm font-medium text-rose-400">{error}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => window.location.reload()}
+                    >
+                      Retry
+                    </Button>
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center text-stone-400">

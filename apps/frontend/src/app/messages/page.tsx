@@ -5,15 +5,18 @@ import { RequireAuth } from '@/components/common/RequireAuth';
 import { SiteHeader } from '@/components/common/SiteHeader';
 import { ConversationList } from '@/components/chat/ConversationList';
 import { chatApi } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import { ChatConversation } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Spinner } from '@/components/ui/spinner';
 import { MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function MessagesPage() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -22,7 +25,10 @@ export default function MessagesPage() {
       .then((res) => {
         if (active) setConversations(res.conversations);
       })
-      .catch(() => undefined)
+      .catch((caught: unknown) => {
+        if (!active) return;
+        setError(caught instanceof ApiError ? caught.message : 'Could not load conversations.');
+      })
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -30,6 +36,10 @@ export default function MessagesPage() {
       active = false;
     };
   }, []);
+
+  function retry() {
+    window.location.reload();
+  }
 
   return (
     <RequireAuth>
@@ -57,6 +67,13 @@ export default function MessagesPage() {
                 {loading ? (
                   <div className="p-8 flex justify-center">
                     <Spinner className="h-6 w-6 text-amber-500" />
+                  </div>
+                ) : error ? (
+                  <div className="p-6 text-center">
+                    <p className="text-sm text-rose-400">{error}</p>
+                    <Button type="button" variant="outline" size="sm" className="mt-3" onClick={retry}>
+                      Retry
+                    </Button>
                   </div>
                 ) : (
                   <ConversationList

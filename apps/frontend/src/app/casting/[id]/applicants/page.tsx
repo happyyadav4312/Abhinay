@@ -366,7 +366,7 @@ function ApplicantCard({
               )}
             </div>
 
-            {/* Direct message & Audition triggers for Shortlisted or Selected */}
+            {/* Direct message & audition triggers for Shortlisted or Selected */}
             {(applicant.status === 'SHORTLISTED' || applicant.status === 'SELECTED') && (
               <div className="flex items-center gap-2">
                 <button
@@ -383,9 +383,14 @@ function ApplicantCard({
                   className="inline-flex items-center gap-1 rounded-md border border-purple-500/40 bg-purple-500/10 px-2.5 py-1 text-xs font-medium text-purple-300 hover:bg-purple-500/20 transition-colors"
                 >
                   <Video className="h-3 w-3" />
-                  Audition
+                  Request audition
                 </button>
               </div>
+            )}
+            {applicant.status === 'APPLIED' && (
+              <p className="text-xs text-muted-foreground">
+                Shortlist or select this applicant to unlock Chat and Request audition.
+              </p>
             )}
           </div>
 
@@ -693,6 +698,11 @@ function Applicants({ id }: { id: string }) {
         <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Applicants</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {role.title} · casting for <span className="font-medium text-primary">{ROLE_LABELS[role.seekingRole]}</span>
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Use <span className="font-medium text-foreground">Shortlist</span> or{' '}
+          <span className="font-medium text-foreground">Select</span> on an applicant to reveal
+          the Chat and Request audition actions.
         </p>
       </header>
 
